@@ -96,5 +96,3 @@ fun AddMaterialScreen(
         }
     }
 }
-
- 

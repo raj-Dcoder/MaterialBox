@@ -3,6 +3,7 @@ package com.rajveer.materialbox.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rajveer.materialbox.data.entity.Material
+import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +53,12 @@ class HomeViewModel @Inject constructor(
     fun incrementViewCount(materialId: Long) {
         viewModelScope.launch {
             materialRepository.incrementViewCount(materialId)
+        }
+    }
+
+    fun deleteSubject(subject: Subject) {
+        viewModelScope.launch {
+            subjectRepository.deleteSubject(subject)
         }
     }
 

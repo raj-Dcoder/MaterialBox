@@ -16,13 +16,13 @@ class MaterialRepository @Inject constructor(
     fun getMaterialById(id: Long): Flow<Material?> =
         materialDao.getMaterialById(id)
 
-    fun getRecentMaterials(limit: Int = 4): Flow<List<Material>> =
+    fun getRecentMaterials(limit: Int = 3): Flow<List<Material>> =
         materialDao.getRecentMaterials(limit)
 
-    fun getRecentlyAddedMaterials(limit: Int = 4): Flow<List<Material>> =
+    fun getRecentlyAddedMaterials(limit: Int = 3): Flow<List<Material>> =
         materialDao.getRecentMaterials(limit)
 
-    fun getMostViewedMaterials(limit: Int = 4): Flow<List<Material>> =
+    fun getMostViewedMaterials(limit: Int = 3): Flow<List<Material>> =
         materialDao.getMostViewedMaterials(limit)
 
     suspend fun insertMaterial(material: Material): Long =

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -48,8 +49,14 @@ class HomeViewModel @Inject constructor(
         _viewMode.value = mode
     }
 
+    fun incrementViewCount(materialId: Long) {
+        viewModelScope.launch {
+            materialRepository.incrementViewCount(materialId)
+        }
+    }
+
     enum class ViewMode {
         RECENTLY_ADDED,
         MOST_VIEWED
     }
-} 
+}

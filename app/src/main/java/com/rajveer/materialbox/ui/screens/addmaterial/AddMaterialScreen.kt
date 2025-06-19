@@ -2,12 +2,14 @@ package com.rajveer.materialbox.ui.screens.addmaterial
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,11 +28,16 @@ fun AddMaterialScreen(
     val content by viewModel.content.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentMaterialType by viewModel.type.collectAsState()
+    val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(materialType) {
         if (materialType != null) {
             viewModel.setType(MaterialType.valueOf(materialType))
         }
+    }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
     }
 
     Scaffold(
@@ -39,7 +46,7 @@ fun AddMaterialScreen(
                 title = { Text("Add Material") },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -63,7 +70,9 @@ fun AddMaterialScreen(
                 value = title,
                 onValueChange = { viewModel.setTitle(it) },
                 label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
                 singleLine = true
             )
             Spacer(modifier = Modifier.height(16.dp))

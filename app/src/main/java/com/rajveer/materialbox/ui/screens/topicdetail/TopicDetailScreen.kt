@@ -129,12 +129,6 @@ fun TopicDetailScreen(
         }
     }
 
-//    LaunchedEffect(topic) {
-//        if (topic == null) {
-//            navController.navigateUp()
-//        }
-//    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -171,15 +165,10 @@ fun TopicDetailScreen(
                         exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(300))
                     ) {
                         SmallFloatingActionButton(
-                            onClick = {
-                                topic?.let { 
-                                    pickDocumentLauncher.launch(arrayOf("application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"))
-                                }
-                            },
-                            containerColor = Red400,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            onClick = { pickDocumentLauncher.launch(arrayOf("*/*")) },
+                            modifier = Modifier.size(40.dp)
                         ) {
-                            Icon(Icons.Default.Description, contentDescription = "Upload Document")
+                            Icon(Icons.Default.Description, contentDescription = "Upload Document", tint = Red400)
                         }
                     }
 
@@ -266,9 +255,6 @@ fun TopicDetailScreen(
                         },
                         onLongPress = {
                             showDeleteMaterialDialog = material
-                        },
-                        onDelete = {
-                            showDeleteMaterialDialog = material
                         }
                     )
                 }
@@ -321,6 +307,7 @@ fun TopicDetailScreen(
                 }
             )
         }
+
     }
 }
 

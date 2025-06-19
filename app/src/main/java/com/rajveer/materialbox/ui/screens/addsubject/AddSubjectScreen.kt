@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -20,6 +22,11 @@ fun AddSubjectScreen(
 ) {
     val name by viewModel.name.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     Scaffold(
         topBar = {
@@ -51,7 +58,9 @@ fun AddSubjectScreen(
                 value = name,
                 onValueChange = { viewModel.setName(it) },
                 label = { Text("Subject Name") },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
                 singleLine = true
             )
 

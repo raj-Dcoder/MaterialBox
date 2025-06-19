@@ -26,6 +26,8 @@ fun SubjectDetailScreen(
     val subject by viewModel.subject.collectAsState()
     val topics by viewModel.topics.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showTopicDeleteDialog by remember { mutableStateOf(false) }
+    var topicToDelete by remember { mutableStateOf<com.rajveer.materialbox.data.entity.Topic?>(null) }
 
   /*  LaunchedEffect(subject) {
         if (subject == null) {
@@ -96,10 +98,36 @@ fun SubjectDetailScreen(
                     TopicCard(
                         topic = topic,
                         onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
-                        onDelete = { viewModel.deleteTopic(topic) }
+                        onLongPress = {
+                            topicToDelete = topic
+                            showTopicDeleteDialog = true
+                        }
                     )
                 }
             }
+        }
+
+        if (showTopicDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showTopicDeleteDialog = false },
+                title = { Text("Delete Topic") },
+                text = { Text("Are you sure you want to delete this topic?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            topicToDelete?.let { viewModel.deleteTopic(it) }
+                            showTopicDeleteDialog = false
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTopicDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         if (showDeleteDialog) {

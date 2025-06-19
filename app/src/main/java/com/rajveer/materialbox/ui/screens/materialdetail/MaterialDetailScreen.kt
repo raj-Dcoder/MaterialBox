@@ -7,6 +7,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +30,7 @@ fun MaterialDetailScreen(
     var isEditing by remember { mutableStateOf(false) }
     var editedTitle by remember { mutableStateOf("") }
     var editedContent by remember { mutableStateOf("") }
+    val titleFocusRequester = remember { FocusRequester() }
 
     val context = LocalContext.current
 
@@ -35,9 +38,22 @@ fun MaterialDetailScreen(
         val currentMaterial = material
         if (!isLoading && currentMaterial == null) {
             navController.navigateUp()
-        } else if (currentMaterial != null && !isEditing) {
-            editedTitle = currentMaterial.title
-            editedContent = currentMaterial.pathOrUrl
+        } else if (currentMaterial != null) {
+            val isNewNote = currentMaterial.title.isEmpty() && currentMaterial.pathOrUrl.isEmpty() && currentMaterial.type == MaterialType.NOTE
+            if (isNewNote) {
+                isEditing = true
+            }
+
+            if (!isEditing) {
+                editedTitle = currentMaterial.title
+                editedContent = currentMaterial.pathOrUrl
+            }
+        }
+    }
+
+    LaunchedEffect(isEditing) {
+        if (isEditing && material?.title?.isEmpty() == true && material?.pathOrUrl?.isEmpty() == true) {
+            titleFocusRequester.requestFocus()
         }
     }
 
@@ -101,7 +117,9 @@ fun MaterialDetailScreen(
                             OutlinedTextField(
                                 value = editedTitle,
                                 onValueChange = { editedTitle = it },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(titleFocusRequester),
                                 label = { Text("Title") },
                                 singleLine = true
                             )

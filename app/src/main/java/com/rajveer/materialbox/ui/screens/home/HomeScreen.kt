@@ -18,19 +18,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.MaterialCard
 import com.rajveer.materialbox.ui.components.SubjectCard
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,7 +40,36 @@ fun HomeScreen(
 ) {
     val subjects by viewModel.subjects.collectAsState()
     val materials by viewModel.materials.collectAsState()
+
     val context = LocalContext.current
+
+    val handleOpenFile: (Material) -> Unit = { mat ->
+        if (mat.type == MaterialType.LINK) {
+            try {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(mat.pathOrUrl))
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "Could not open link", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Handle internally stored files
+            val file = File(context.filesDir, mat.pathOrUrl)
+            if (file.exists()) {
+                try {
+                    val uri = FileProvider.getUriForFile(context, context.applicationContext.packageName + ".provider", file)
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, context.contentResolver.getType(uri))
+                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "No application found to open this file", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                android.widget.Toast.makeText(context, "File not found", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -90,22 +119,17 @@ fun HomeScreen(
             items(materials) { material ->
                 MaterialCard(
                     material = material,
-                    onClick = { 
-                        if (material.type == MaterialType.LINK) {
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(material.pathOrUrl))
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
-                            }
-                        } else {
+                    onClick = {
+                        if (material.type == MaterialType.NOTE) {
                             navController.navigate(Screen.MaterialDetail.createRoute(material.id))
+                        } else {
+                            handleOpenFile(material)
+                            viewModel.incrementViewCount(material.id)
                         }
                     },
-                    onLongPress = {},
-                    onDelete = {}
+                    onLongPress = {}
                 )
             }
         }
     }
-} 
+}

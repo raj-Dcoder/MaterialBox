@@ -20,7 +20,6 @@ fun MaterialCard(
     material: Material,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
-    onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -104,16 +103,6 @@ fun MaterialCard(
                         text = material.viewCount.toString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            
-            if (onDelete != null) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Material",
-                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }

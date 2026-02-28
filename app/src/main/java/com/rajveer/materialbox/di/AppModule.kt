@@ -30,7 +30,9 @@ object AppModule {
             AppDatabase::class.java,
             "materialbox_database"
         )
-        .fallbackToDestructiveMigration()
+        // ⚠️ NEVER use fallbackToDestructiveMigration() — it silently wipes ALL user data
+        // when the DB version changes. Instead, use explicit migrations so data is preserved.
+        .addMigrations(AppDatabase.MIGRATION_1_2)
         .build()
     }
 

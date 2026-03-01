@@ -117,24 +117,6 @@ fun HomeScreen(
                         )
                     }
                 },
-                actions = {
-                    // Overflow menu (three-dot) — keeps the top bar clean
-                    IconButton(onClick = { showOverflowMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                    }
-                    DropdownMenu(
-                        expanded = showOverflowMenu,
-                        onDismissRequest = { showOverflowMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Manage Originals") },
-                            onClick = {
-                                showOverflowMenu = false
-                                navController.navigate(Screen.ManageOriginals.route)
-                            }
-                        )
-                    }
-                },
                 scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.largeTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,

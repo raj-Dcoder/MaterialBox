@@ -18,7 +18,6 @@ import com.rajveer.materialbox.ui.screens.home.HomeScreen
 import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
 import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailScreen
 import com.rajveer.materialbox.ui.screens.topicdetail.TopicDetailScreen
-import com.rajveer.materialbox.ui.screens.manageoriginals.ManageOriginalsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -108,11 +107,6 @@ fun NavGraph(navController: NavHostController) {
                 navController = navController,
                 materialId = materialId
             )
-        }
-
-        // Manage Originals Screen
-        composable(Screen.ManageOriginals.route) {
-            ManageOriginalsScreen()
         }
     }
 } 

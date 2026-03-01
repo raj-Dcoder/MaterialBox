@@ -21,6 +21,9 @@ interface MaterialDao {
     @Query("SELECT * FROM materials WHERE title LIKE '%' || :query || '%'")
     fun searchMaterials(query: String): Flow<List<Material>>
 
+    @Query("SELECT * FROM materials WHERE originalFileUri IS NOT NULL")
+    fun getMaterialsWithOriginalUri(): Flow<List<Material>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMaterial(material: Material): Long
 

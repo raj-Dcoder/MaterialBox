@@ -1,21 +1,33 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# ============================================================
+# MaterialBox ProGuard Rules
+# These rules tell R8 what NOT to strip out during minification
+# ============================================================
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Room Database ---
+# Keep Room entities and DAOs — R8 can't see they're used via reflection
+-keep class com.rajveer.materialbox.data.entity.** { *; }
+-keep class com.rajveer.materialbox.data.dao.** { *; }
+-keep class com.rajveer.materialbox.data.converter.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Hilt / Dagger ---
+# Hilt uses annotation processing + reflection — keep generated code
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Kotlin Coroutines ---
+-keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# --- Keep line numbers for crash reports ---
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# --- Compose ---
+# Compose uses reflection for previews and some internals
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+
+# --- General Android ---
+-keep class * extends android.app.Application
+-keep class * extends android.app.Activity

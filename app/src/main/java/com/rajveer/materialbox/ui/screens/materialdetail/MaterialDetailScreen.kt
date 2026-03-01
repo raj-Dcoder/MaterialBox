@@ -1,7 +1,10 @@
 package com.rajveer.materialbox.ui.screens.materialdetail
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,12 +12,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,8 +33,6 @@ fun MaterialDetailScreen(
     var editedContent by remember { mutableStateOf("") }
     val titleFocusRequester = remember { FocusRequester() }
 
-    val context = LocalContext.current
-
     LaunchedEffect(material, isLoading) {
         val currentMaterial = material
         if (!isLoading && currentMaterial == null) {
@@ -43,7 +42,6 @@ fun MaterialDetailScreen(
             if (isNewNote) {
                 isEditing = true
             }
-
             if (!isEditing) {
                 editedTitle = currentMaterial.title
                 editedContent = currentMaterial.pathOrUrl
@@ -69,7 +67,7 @@ fun MaterialDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -79,9 +77,7 @@ fun MaterialDetailScreen(
                                 viewModel.updateMaterial(
                                     title = editedTitle,
                                     content = editedContent
-                                ) {
-                                    isEditing = false
-                                }
+                                ) { isEditing = false }
                             },
                             enabled = editedTitle.isNotBlank()
                         ) {
@@ -95,7 +91,10 @@ fun MaterialDetailScreen(
                             Icon(Icons.Default.Delete, contentDescription = "Delete")
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { padding ->
@@ -108,6 +107,7 @@ fun MaterialDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .verticalScroll(rememberScrollState())
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -126,8 +126,7 @@ fun MaterialDetailScreen(
                             OutlinedTextField(
                                 value = editedContent,
                                 onValueChange = { editedContent = it },
-                                modifier = Modifier
-                                    .fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(),
                                 label = { Text("Content") }
                             )
                         } else {
@@ -151,7 +150,10 @@ fun MaterialDetailScreen(
                                 singleLine = true
                             )
                         } else {
-                            Text(material?.pathOrUrl ?: "No file/link", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                material?.pathOrUrl ?: "No file/link",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
                         }
                     }
                 }
@@ -171,7 +173,7 @@ fun MaterialDetailScreen(
                             navController.navigateUp()
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
@@ -182,4 +184,4 @@ fun MaterialDetailScreen(
             )
         }
     }
-} 
+}

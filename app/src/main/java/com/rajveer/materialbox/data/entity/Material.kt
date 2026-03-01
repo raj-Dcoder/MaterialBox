@@ -27,6 +27,7 @@ data class Material(
     val type: MaterialType,
     val title: String,
     val pathOrUrl: String,
+    val originalFileUri: String? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date(),
     val viewCount: Int = 0

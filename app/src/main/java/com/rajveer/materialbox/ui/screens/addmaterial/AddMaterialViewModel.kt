@@ -54,7 +54,8 @@ class AddMaterialViewModel @Inject constructor(
                     title = _title.value.trim(),
                     pathOrUrl = _content.value.trim(), // For LINK type, content is the URL
                     type = _type.value,
-                    topicId = topicId
+                    topicId = topicId,
+                    originalFileUri = null
                 )
                 materialRepository.insertMaterial(material)
                 onSuccess()

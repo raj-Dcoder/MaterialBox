@@ -2,6 +2,7 @@ package com.rajveer.materialbox.ui.screens.topicdetail
 
 import android.content.Context
 import android.net.Uri
+
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,12 +13,21 @@ import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import javax.inject.Inject
+
+data class TopicDetailUiState(
+    val topic: Topic? = null,
+    val materials: List<Material> = emptyList(),
+    val isLoading: Boolean = true
+)
 
 @HiltViewModel
 class TopicDetailViewModel @Inject constructor(
@@ -29,30 +39,23 @@ class TopicDetailViewModel @Inject constructor(
 
     private val topicId: Long = checkNotNull(savedStateHandle["topicId"])
 
-    private val _topic = MutableStateFlow<Topic?>(null)
-    val topic: StateFlow<Topic?> = _topic
-
-    val materials = materialRepository.getMaterialsForTopic(topicId)
+    val uiState: StateFlow<TopicDetailUiState> = topicRepository.getTopicWithMaterials(topicId)
+        .map { topicWithMaterials ->
+            TopicDetailUiState(
+                topic = topicWithMaterials.topic,
+                materials = topicWithMaterials.materials,
+                isLoading = false
+            )
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = TopicDetailUiState(isLoading = true)
         )
-
-    init {
-        viewModelScope.launch {
-            topicRepository.getTopicById(topicId)
-                .collect { fetchedTopic ->
-                    _topic.value = fetchedTopic
-                }
-        }
-    }
 
     fun deleteTopic() {
         viewModelScope.launch {
-            _topic.value?.let { topic ->
-                topicRepository.deleteTopic(topic)
-            }
+            uiState.value.topic?.let { topicRepository.deleteTopic(it) }
         }
     }
 
@@ -70,7 +73,8 @@ class TopicDetailViewModel @Inject constructor(
                     title = title,
                     pathOrUrl = internalFileName,
                     type = type,
-                    topicId = topicId
+                    topicId = topicId,
+                    originalFileUri = uri.toString()
                 )
                 materialRepository.insertMaterial(material)
                 onSuccess()
@@ -101,4 +105,4 @@ class TopicDetailViewModel @Inject constructor(
             materialRepository.incrementViewCount(materialId)
         }
     }
-} 
+}

@@ -1,7 +1,11 @@
 package com.rajveer.materialbox.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -13,14 +17,30 @@ import com.rajveer.materialbox.ui.screens.addtopic.AddTopicScreen
 import com.rajveer.materialbox.ui.screens.home.HomeScreen
 import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
 import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailScreen
-import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailViewModel
 import com.rajveer.materialbox.ui.screens.topicdetail.TopicDetailScreen
+import com.rajveer.materialbox.ui.screens.manageoriginals.ManageOriginalsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = Screen.Home.route,
+        enterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(300)
+            )
+        },
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { -it },
+                animationSpec = tween(300)
+            )
+        },
+        // Going BACK: no animation = nothing to preview during swipe
+        // Back only triggers when you lift your finger (predictive back)
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
         composable(Screen.Home.route) {
             HomeScreen(navController)
@@ -88,6 +108,11 @@ fun NavGraph(navController: NavHostController) {
                 navController = navController,
                 materialId = materialId
             )
+        }
+
+        // Manage Originals Screen
+        composable(Screen.ManageOriginals.route) {
+            ManageOriginalsScreen()
         }
     }
 } 

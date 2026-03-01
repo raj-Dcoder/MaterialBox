@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.MaterialBox" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MaterialBox" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Poppins font (replaces Nunito) -->
+        <item name="android:fontFamily">@font/poppins_regular</item>
+        <item name="android:colorPrimary">@color/primary</item>
+        <item name="android:colorPrimaryDark">@color/primary_variant</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:colorBackground">@color/background</item>
+        <!-- Edge-to-edge: transparent status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

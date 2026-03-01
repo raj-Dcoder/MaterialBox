@@ -25,6 +25,9 @@ class MaterialRepository @Inject constructor(
     fun getMostViewedMaterials(limit: Int = 3): Flow<List<Material>> =
         materialDao.getMostViewedMaterials(limit)
 
+    fun getMaterialsWithOriginalUri(): Flow<List<Material>> =
+        materialDao.getMaterialsWithOriginalUri()
+
     suspend fun insertMaterial(material: Material): Long =
         materialDao.insertMaterial(material)
 

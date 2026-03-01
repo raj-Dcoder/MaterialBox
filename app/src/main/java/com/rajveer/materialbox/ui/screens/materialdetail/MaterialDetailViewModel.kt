@@ -58,7 +58,8 @@ class MaterialDetailViewModel @Inject constructor(
             _material.value?.let { material ->
                 val updatedMaterial = material.copy(
                     title = title.trim(),
-                    pathOrUrl = content.trim()
+                    pathOrUrl = content.trim(),
+                    originalFileUri = material.originalFileUri
                 )
                 materialRepository.updateMaterial(updatedMaterial)
                 onSuccess()

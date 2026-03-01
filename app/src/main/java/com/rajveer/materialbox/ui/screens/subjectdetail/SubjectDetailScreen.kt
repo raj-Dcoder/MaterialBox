@@ -3,18 +3,24 @@ package com.rajveer.materialbox.ui.screens.subjectdetail
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Topic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.TopicCard
+import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,13 +33,7 @@ fun SubjectDetailScreen(
     val topics by viewModel.topics.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showTopicDeleteDialog by remember { mutableStateOf(false) }
-    var topicToDelete by remember { mutableStateOf<com.rajveer.materialbox.data.entity.Topic?>(null) }
-
-  /*  LaunchedEffect(subject) {
-        if (subject == null) {
-            navController.navigateUp()
-        }
-    }*/
+    var topicToDelete by remember { mutableStateOf<Topic?>(null) }
 
     Scaffold(
         topBar = {
@@ -47,25 +47,31 @@ fun SubjectDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Subject")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { 
-                    subject?.let { 
+                onClick = {
+                    subject?.let {
                         navController.navigate(Screen.AddTopic.createRoute(it.id))
                     }
-                }
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Topic")
+                Icon(Icons.Default.Add, contentDescription = "Add Topic",
+                    tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     ) { padding ->
@@ -78,40 +84,54 @@ fun SubjectDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else{
+        } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     Text(
                         text = "Topics",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
 
-                items(topics) { topic ->
-                    TopicCard(
-                        topic = topic,
-                        onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
-                        onLongPress = {
-                            topicToDelete = topic
-                            showTopicDeleteDialog = true
-                        }
-                    )
+                if (topics.isEmpty()) {
+                    item {
+                        EmptyStateCard(
+                            icon = Icons.Outlined.Topic,
+                            title = "No topics yet",
+                            subtitle = "Tap the + button to add your first topic"
+                        )
+                    }
+                } else {
+                    items(topics) { topic ->
+                        TopicCard(
+                            topic = topic,
+                            onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
+                            onLongPress = {
+                                topicToDelete = topic
+                                showTopicDeleteDialog = true
+                            }
+                        )
+                    }
                 }
+
+                // Bottom spacer for FAB
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
 
+        // Delete topic dialog
         if (showTopicDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showTopicDeleteDialog = false },
                 title = { Text("Delete Topic") },
-                text = { Text("Are you sure you want to delete this topic?") },
+                text = { Text("This will also delete all materials inside it.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -119,7 +139,7 @@ fun SubjectDetailScreen(
                             showTopicDeleteDialog = false
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
@@ -130,11 +150,12 @@ fun SubjectDetailScreen(
             )
         }
 
+        // Delete subject dialog
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Delete Subject") },
-                text = { Text("Are you sure you want to delete this subject and all its topics?") },
+                text = { Text("This will delete all topics and materials inside it.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -143,7 +164,7 @@ fun SubjectDetailScreen(
                             navController.navigateUp()
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
@@ -154,4 +175,4 @@ fun SubjectDetailScreen(
             )
         }
     }
-} 
+}

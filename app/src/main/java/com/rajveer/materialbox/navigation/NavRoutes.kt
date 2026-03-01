@@ -26,4 +26,6 @@ sealed class Screen(val route: String) {
     object MaterialDetail : Screen("material/{materialId}") {
         fun createRoute(materialId: Long) = "material/$materialId"
     }
+
+    object ManageOriginals : Screen("manage_originals")
 }

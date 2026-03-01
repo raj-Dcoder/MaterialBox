@@ -1,7 +1,11 @@
 package com.rajveer.materialbox.ui.screens.topicdetail
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -13,8 +17,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,20 +29,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.MaterialCard
-import com.rajveer.materialbox.ui.theme.Red400
-import com.rajveer.materialbox.ui.theme.Blue400
-import android.content.Context
-import android.provider.OpenableColumns
-import android.content.Intent
-import android.widget.Toast
-import androidx.core.content.FileProvider
-import com.rajveer.materialbox.data.entity.Material
+import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
+import com.rajveer.materialbox.ui.theme.*
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,14 +47,16 @@ fun TopicDetailScreen(
     viewModel: TopicDetailViewModel = hiltViewModel(),
     topicId: Long
 ) {
-    val topic by viewModel.topic.collectAsState()
-    val materials by viewModel.materials.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val topic = uiState.topic
+    val materials = uiState.materials
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteMaterialDialog by remember { mutableStateOf<Material?>(null) }
     var fabExpanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
 
+    // File opener utility
     val handleOpenFile: (Material) -> Unit = { mat ->
         if (mat.type == MaterialType.LINK) {
             try {
@@ -62,7 +66,6 @@ fun TopicDetailScreen(
                 Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
             }
         } else {
-            // Handle internally stored files
             val file = File(context.filesDir, mat.pathOrUrl)
             if (file.exists()) {
                 try {
@@ -86,8 +89,7 @@ fun TopicDetailScreen(
     ) { uri: Uri? ->
         uri?.let {
             try {
-                // Take persistable URI permission to access the file across app restarts
-                val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 context.contentResolver.takePersistableUriPermission(it, takeFlags)
 
                 val fileName = getFileName(context, it) ?: "Untitled"
@@ -98,14 +100,13 @@ fun TopicDetailScreen(
                     "txt" -> MaterialType.TXT
                     "jpg", "jpeg", "png" -> MaterialType.IMAGE
                     else -> {
-                        // Attempt to infer from mime type for more robustness
                         val mimeType = context.contentResolver.getType(it)
                         when {
                             mimeType?.startsWith("image/") == true -> MaterialType.IMAGE
                             mimeType == "application/pdf" -> MaterialType.PDF
                             mimeType == "application/msword" || mimeType == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> MaterialType.DOCX
                             mimeType?.startsWith("text/") == true -> MaterialType.TXT
-                            else -> MaterialType.NOTE // Fallback for unsupported types
+                            else -> MaterialType.NOTE
                         }
                     }
                 }
@@ -141,42 +142,45 @@ fun TopicDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Topic")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
         },
         floatingActionButton = {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.padding(bottom = 16.dp, end = 16.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (fabExpanded) {
-                    // Document Upload option
+                    // Document upload
                     AnimatedVisibility(
                         visible = fabExpanded,
-                        enter = fadeIn(animationSpec = tween(300)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(300)),
-                        exit = fadeOut(animationSpec = tween(300)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(300))
+                        enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
                         SmallFloatingActionButton(
                             onClick = { pickDocumentLauncher.launch(arrayOf("*/*")) },
-                            modifier = Modifier.size(40.dp)
+                            containerColor = MaterialPdfColor.copy(alpha = 0.15f),
+                            contentColor = MaterialPdfColor
                         ) {
-                            Icon(Icons.Default.Description, contentDescription = "Upload Document", tint = Red400)
+                            Icon(Icons.Default.Description, contentDescription = "Upload Document")
                         }
                     }
 
-                    // Text option
+                    // Text note
                     AnimatedVisibility(
                         visible = fabExpanded,
-                        enter = fadeIn(animationSpec = tween(300, delayMillis = 50)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(300, delayMillis = 50)),
-                        exit = fadeOut(animationSpec = tween(300, delayMillis = 50)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(300, delayMillis = 50))
+                        enter = fadeIn(tween(200, delayMillis = 50)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 50)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
                         SmallFloatingActionButton(
                             onClick = {
@@ -185,18 +189,18 @@ fun TopicDetailScreen(
                                 }
                                 fabExpanded = false
                             },
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ) {
                             Icon(Icons.Default.TextSnippet, contentDescription = "Add Text Material")
                         }
                     }
 
-                    // Add Link option
+                    // Add link
                     AnimatedVisibility(
                         visible = fabExpanded,
-                        enter = fadeIn(animationSpec = tween(300, delayMillis = 100)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(300, delayMillis = 100)),
-                        exit = fadeOut(animationSpec = tween(300, delayMillis = 100)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(300, delayMillis = 100))
+                        enter = fadeIn(tween(200, delayMillis = 100)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 100)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
                         SmallFloatingActionButton(
                             onClick = {
@@ -205,67 +209,90 @@ fun TopicDetailScreen(
                                 }
                                 fabExpanded = false
                             },
-                            containerColor = Blue400,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = MaterialLinkColor.copy(alpha = 0.15f),
+                            contentColor = MaterialLinkColor
                         ) {
                             Icon(Icons.Default.Link, contentDescription = "Add Link")
                         }
                     }
                 }
 
-                // Main Floating Action Button
+                // Main FAB
                 FloatingActionButton(
                     onClick = { fabExpanded = !fabExpanded },
-                    modifier = Modifier.zIndex(1f) // Ensure main FAB is always on top
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primary
                 ) {
                     Icon(
                         imageVector = if (fabExpanded) Icons.Default.Close else Icons.Default.Add,
-                        contentDescription = if (fabExpanded) "Close options" else "Add Material"
+                        contentDescription = if (fabExpanded) "Close options" else "Add Material",
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
         }
     ) { padding ->
-        if (topic != null) {
+        if (uiState.isLoading) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (topic != null) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
                     Text(
                         text = "Materials",
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.padding(vertical = 16.dp)
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
 
-                items(materials) { material ->
-                    MaterialCard(
-                        material = material,
-                        onClick = {
-                            if (material.type == MaterialType.NOTE) {
-                                navController.navigate(Screen.MaterialDetail.createRoute(material.id))
-                            } else {
-                                handleOpenFile(material)
-                                viewModel.incrementViewCount(material.id)
+                if (materials.isEmpty()) {
+                    item {
+                        EmptyStateCard(
+                            icon = Icons.Outlined.Inventory2,
+                            title = "No materials yet",
+                            subtitle = "Tap the + button to add notes, files, or links"
+                        )
+                    }
+                } else {
+                    items(materials) { material ->
+                        MaterialCard(
+                            material = material,
+                            onClick = {
+                                if (material.type == MaterialType.NOTE) {
+                                    navController.navigate(Screen.MaterialDetail.createRoute(material.id))
+                                } else {
+                                    handleOpenFile(material)
+                                    viewModel.incrementViewCount(material.id)
+                                }
+                            },
+                            onLongPress = {
+                                showDeleteMaterialDialog = material
                             }
-                        },
-                        onLongPress = {
-                            showDeleteMaterialDialog = material
-                        }
-                    )
+                        )
+                    }
                 }
+
+                // Bottom spacer for FAB
+                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
 
+        // Delete topic dialog
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Delete Topic") },
-                text = { Text("Are you sure you want to delete this topic and all its materials?") },
+                text = { Text("This will also delete all materials inside it.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -274,7 +301,7 @@ fun TopicDetailScreen(
                             navController.navigateUp()
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
@@ -285,6 +312,7 @@ fun TopicDetailScreen(
             )
         }
 
+        // Delete material dialog
         if (showDeleteMaterialDialog != null) {
             AlertDialog(
                 onDismissRequest = { showDeleteMaterialDialog = null },
@@ -297,7 +325,7 @@ fun TopicDetailScreen(
                             showDeleteMaterialDialog = null
                         }
                     ) {
-                        Text("Delete")
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
@@ -307,7 +335,6 @@ fun TopicDetailScreen(
                 }
             )
         }
-
     }
 }
 
@@ -337,4 +364,4 @@ fun getFileName(context: Context, uri: Uri): String? {
 fun getFileExtension(context: Context, uri: Uri): String? {
     val mimeType = context.contentResolver.getType(uri)
     return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
-} 
+}

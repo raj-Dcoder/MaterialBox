@@ -72,7 +72,7 @@ val md_theme_dark_onErrorContainer = Color(0xFFFFDAD6)
 
 val md_theme_dark_background = Color(0xFF121218)          // Deep dark — not pure black
 val md_theme_dark_onBackground = Color(0xFFE4E1E9)
-val md_theme_dark_surface = Color(0xFF121218)
+val md_theme_dark_surface = Color(0xFF1C1C24)             // Slightly lighter than bg for card contrast
 val md_theme_dark_onSurface = Color(0xFFE4E1E9)
 val md_theme_dark_surfaceVariant = Color(0xFF45464F)
 val md_theme_dark_onSurfaceVariant = Color(0xFFC6C5D0)

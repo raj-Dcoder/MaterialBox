@@ -1,7 +1,12 @@
 package com.rajveer.materialbox.ui.screens.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,39 +18,49 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.StickyNote2
+import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -53,8 +68,9 @@ import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.navigation.Screen
-import com.rajveer.materialbox.ui.components.MaterialCard
 import com.rajveer.materialbox.ui.components.SubjectCard
+import com.rajveer.materialbox.ui.theme.*
+import com.rajveer.materialbox.util.toRelativeTimeString
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,14 +82,20 @@ fun HomeScreen(
     val subjects by viewModel.subjects.collectAsState()
     val materials by viewModel.materials.collectAsState()
     val viewMode by viewModel.viewMode.collectAsState()
+    val topicCount by viewModel.topicCount.collectAsState()
+    val materialCount by viewModel.materialCount.collectAsState()
     var showDeleteSubjectDialog by remember { mutableStateOf<Subject?>(null) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
+    val listState = rememberLazyListState()
+
+    // Show TopAppBar title only when the header is scrolled out of view
+    val showTopBarTitle by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 0 }
+    }
 
     // ============================================================
-    // File opener utility (handles both LINK and file-based materials)
-    // TODO: Extract this to a shared util class (currently duplicated in TopicDetailScreen)
+    // File opener utility
     // ============================================================
     val handleOpenFile: (Material) -> Unit = { mat ->
         if (mat.type == MaterialType.LINK) {
@@ -102,30 +124,33 @@ fun HomeScreen(
         }
     }
 
-    // Collapsible top bar — shrinks when you scroll down
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
+            // Sticky TopAppBar — shows "MaterialBox" only after scroll
+            TopAppBar(
                 title = {
-                    Column {
+                    AnimatedVisibility(
+                        visible = showTopBarTitle,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
                         Text(
                             text = "MaterialBox",
-                            style = MaterialTheme.typography.headlineMedium
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
                         )
                     }
                 },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.largeTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (showTopBarTitle)
+                        MaterialTheme.colorScheme.background
+                    else
+                        Color.Transparent
                 )
             )
         },
         floatingActionButton = {
-            // Clean, static FAB — no gimmicky pulsating animation
             FloatingActionButton(
                 onClick = { navController.navigate(Screen.AddSubject.route) },
                 shape = RoundedCornerShape(16.dp),
@@ -140,25 +165,111 @@ fun HomeScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 16.dp),
+                .padding(paddingValues),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ============================================================
+            // HEADER — App name + Greeting + Stats
+            // ============================================================
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 16.dp)
+                ) {
+                    Text(
+                        text = "MaterialBox",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 32.sp
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = viewModel.getGreeting(),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${subjects.size} subjects • $topicCount topics • $materialCount materials",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            // ============================================================
+            // FILTER CHIPS — Recent / Most Viewed
+            // ============================================================
+            item {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = viewMode == HomeViewModel.ViewMode.RECENTLY_ADDED,
+                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.RECENTLY_ADDED) },
+                        label = { Text("Recent") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                    FilterChip(
+                        selected = viewMode == HomeViewModel.ViewMode.MOST_VIEWED,
+                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.MOST_VIEWED) },
+                        label = { Text("Most Viewed") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    )
+                }
+            }
+
+            // ============================================================
+            // MATERIALS — Horizontal scroll with COMPACT cards
+            // ============================================================
+            if (materials.isNotEmpty()) {
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(materials) { material ->
+                            CompactMaterialCard(
+                                material = material,
+                                onClick = {
+                                    if (material.type == MaterialType.NOTE) {
+                                        navController.navigate(Screen.MaterialDetail.createRoute(material.id))
+                                    } else {
+                                        handleOpenFile(material)
+                                        viewModel.incrementViewCount(material.id)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             // ============================================================
             // SUBJECTS SECTION
             // ============================================================
             item {
                 Text(
-                    text = "Your Subjects",
+                    text = "Subjects",
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                 )
             }
 
             if (subjects.isEmpty()) {
-                // Styled empty state — much better than plain text
                 item {
                     EmptyStateCard(
                         icon = Icons.Outlined.School,
@@ -175,78 +286,8 @@ fun HomeScreen(
                         },
                         onLongPress = {
                             showDeleteSubjectDialog = subject
-                        }
-                    )
-                }
-            }
-
-            // ============================================================
-            // MATERIALS SECTION with toggle chips
-            // ============================================================
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Materials",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Toggle chips: "Recently Added" / "Most Viewed"
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = viewMode == HomeViewModel.ViewMode.RECENTLY_ADDED,
-                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.RECENTLY_ADDED) },
-                        label = { Text("Recent") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                    FilterChip(
-                        selected = viewMode == HomeViewModel.ViewMode.MOST_VIEWED,
-                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.MOST_VIEWED) },
-                        label = { Text("Most Viewed") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                            selectedLabelColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-                }
-            }
-
-            if (materials.isEmpty()) {
-                item {
-                    Text(
-                        text = "No materials yet. Add materials inside a subject to see them here.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .padding(vertical = 16.dp)
-                            .fillMaxWidth()
-                    )
-                }
-            } else {
-                items(materials) { material ->
-                    MaterialCard(
-                        material = material,
-                        onClick = {
-                            if (material.type == MaterialType.NOTE) {
-                                navController.navigate(Screen.MaterialDetail.createRoute(material.id))
-                            } else {
-                                handleOpenFile(material)
-                                viewModel.incrementViewCount(material.id)
-                            }
                         },
-                        onLongPress = {}
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -282,12 +323,97 @@ fun HomeScreen(
 }
 
 // ============================================================
-// Reusable empty state card — used across multiple screens
-// Shows a large icon + title + subtitle
+// Compact Material Card — for horizontal scroll on HomeScreen
+// Vertical layout: icon on top, title, date below
+// ============================================================
+@Composable
+private fun CompactMaterialCard(
+    material: Material,
+    onClick: () -> Unit
+) {
+    val typeColor = material.type.accentColor()
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .width(150.dp)
+            .height(100.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Type icon
+            Surface(
+                modifier = Modifier.size(32.dp),
+                shape = RoundedCornerShape(8.dp),
+                color = typeColor.copy(alpha = 0.15f)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = material.type.icon(),
+                        contentDescription = null,
+                        tint = typeColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Title + date
+            Column {
+                Text(
+                    text = material.title,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = material.createdAt.toRelativeTimeString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+// Helper functions (same as in MaterialCard.kt but private here to avoid import issues)
+private fun MaterialType.icon(): ImageVector = when (this) {
+    MaterialType.PDF -> Icons.Filled.PictureAsPdf
+    MaterialType.LINK -> Icons.Filled.Link
+    MaterialType.NOTE -> Icons.Filled.StickyNote2
+    MaterialType.IMAGE -> Icons.Filled.Image
+    MaterialType.TXT -> Icons.Filled.TextSnippet
+    MaterialType.DOCX -> Icons.Filled.Description
+}
+
+private fun MaterialType.accentColor(): Color = when (this) {
+    MaterialType.PDF -> MaterialPdfColor
+    MaterialType.LINK -> MaterialLinkColor
+    MaterialType.NOTE -> MaterialNoteColor
+    MaterialType.IMAGE -> MaterialImageColor
+    MaterialType.TXT -> MaterialTxtColor
+    MaterialType.DOCX -> MaterialDocxColor
+}
+
+// ============================================================
+// Reusable empty state card
 // ============================================================
 @Composable
 fun EmptyStateCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     title: String,
     subtitle: String
 ) {

@@ -28,4 +28,7 @@ class TopicRepository @Inject constructor(
 
     suspend fun deleteTopic(topic: Topic) =
         topicDao.deleteTopic(topic)
+
+    fun getTotalTopicCount(): Flow<Int> =
+        topicDao.getTotalTopicCount()
 }

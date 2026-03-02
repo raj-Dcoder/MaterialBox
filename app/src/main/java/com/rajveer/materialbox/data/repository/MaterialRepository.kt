@@ -39,4 +39,7 @@ class MaterialRepository @Inject constructor(
 
     suspend fun incrementViewCount(materialId: Long) = 
         materialDao.incrementViewCount(materialId)
+
+    fun getTotalMaterialCount(): Flow<Int> =
+        materialDao.getTotalMaterialCount()
 } 

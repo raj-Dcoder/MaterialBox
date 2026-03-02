@@ -35,4 +35,7 @@ interface MaterialDao {
 
     @Query("UPDATE materials SET viewCount = viewCount + 1 WHERE id = :materialId")
     suspend fun incrementViewCount(materialId: Long)
+
+    @Query("SELECT COUNT(*) FROM materials")
+    fun getTotalMaterialCount(): Flow<Int>
 } 

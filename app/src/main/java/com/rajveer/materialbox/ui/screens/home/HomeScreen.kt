@@ -22,12 +22,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.StickyNote2
-import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -53,8 +47,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,12 +60,15 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.SubjectCard
-import com.rajveer.materialbox.ui.theme.*
+import com.rajveer.materialbox.ui.components.accentColor
+import com.rajveer.materialbox.ui.components.icon
 import com.rajveer.materialbox.util.toRelativeTimeString
 import java.io.File
 
@@ -324,7 +323,7 @@ fun HomeScreen(
 
 // ============================================================
 // Compact Material Card — for horizontal scroll on HomeScreen
-// Vertical layout: icon on top, title, date below
+// Vertical layout: icon/thumbnail on top, title, date below
 // ============================================================
 @Composable
 private fun CompactMaterialCard(
@@ -332,6 +331,7 @@ private fun CompactMaterialCard(
     onClick: () -> Unit
 ) {
     val typeColor = material.type.accentColor()
+    val context = LocalContext.current
 
     Card(
         onClick = onClick,
@@ -350,22 +350,38 @@ private fun CompactMaterialCard(
                 .padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Type icon
-            Surface(
-                modifier = Modifier.size(32.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = typeColor.copy(alpha = 0.15f)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            // Type icon OR image thumbnail
+            if (material.type == MaterialType.IMAGE) {
+                val imageFile = File(context.filesDir, material.pathOrUrl)
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageFile)
+                        .crossfade(true)
+                        .size(96)
+                        .build(),
+                    contentDescription = "Image thumbnail",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            } else {
+                Surface(
+                    modifier = Modifier.size(32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = typeColor.copy(alpha = 0.15f)
                 ) {
-                    Icon(
-                        imageVector = material.type.icon(),
-                        contentDescription = null,
-                        tint = typeColor,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = material.type.icon(),
+                            contentDescription = null,
+                            tint = typeColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -387,25 +403,6 @@ private fun CompactMaterialCard(
             }
         }
     }
-}
-
-// Helper functions (same as in MaterialCard.kt but private here to avoid import issues)
-private fun MaterialType.icon(): ImageVector = when (this) {
-    MaterialType.PDF -> Icons.Filled.PictureAsPdf
-    MaterialType.LINK -> Icons.Filled.Link
-    MaterialType.NOTE -> Icons.Filled.StickyNote2
-    MaterialType.IMAGE -> Icons.Filled.Image
-    MaterialType.TXT -> Icons.Filled.TextSnippet
-    MaterialType.DOCX -> Icons.Filled.Description
-}
-
-private fun MaterialType.accentColor(): Color = when (this) {
-    MaterialType.PDF -> MaterialPdfColor
-    MaterialType.LINK -> MaterialLinkColor
-    MaterialType.NOTE -> MaterialNoteColor
-    MaterialType.IMAGE -> MaterialImageColor
-    MaterialType.TXT -> MaterialTxtColor
-    MaterialType.DOCX -> MaterialDocxColor
 }
 
 // ============================================================

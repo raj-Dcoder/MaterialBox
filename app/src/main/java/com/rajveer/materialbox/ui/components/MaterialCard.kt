@@ -11,21 +11,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.ui.theme.*
 import com.rajveer.materialbox.util.toRelativeTimeString
+import java.io.File
 
 // ============================================================
 // Helper: maps each MaterialType to its icon + accent color
-// This keeps the card composable clean and makes it easy to
-// add new types later — just add a case here.
 // ============================================================
-private fun MaterialType.icon(): ImageVector = when (this) {
+fun MaterialType.icon(): ImageVector = when (this) {
     MaterialType.PDF -> Icons.Filled.PictureAsPdf
     MaterialType.LINK -> Icons.Filled.Link
     MaterialType.NOTE -> Icons.Filled.StickyNote2
@@ -34,7 +38,7 @@ private fun MaterialType.icon(): ImageVector = when (this) {
     MaterialType.DOCX -> Icons.Filled.Description
 }
 
-private fun MaterialType.accentColor(): Color = when (this) {
+fun MaterialType.accentColor(): Color = when (this) {
     MaterialType.PDF -> MaterialPdfColor
     MaterialType.LINK -> MaterialLinkColor
     MaterialType.NOTE -> MaterialNoteColor
@@ -52,6 +56,7 @@ fun MaterialCard(
     modifier: Modifier = Modifier
 ) {
     val typeColor = material.type.accentColor()
+    val context = LocalContext.current
 
     Card(
         modifier = modifier
@@ -74,23 +79,40 @@ fun MaterialCard(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Type icon with accent-colored container
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                // 15% opacity of the accent color = subtle tint
-                color = typeColor.copy(alpha = 0.15f)
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+            // Type icon OR image thumbnail for IMAGE type
+            if (material.type == MaterialType.IMAGE) {
+                // Show actual image thumbnail
+                val imageFile = File(context.filesDir, material.pathOrUrl)
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageFile)
+                        .crossfade(true)
+                        .size(128) // thumbnail size in px
+                        .build(),
+                    contentDescription = "Image thumbnail",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+            } else {
+                // Standard type icon with accent-colored container
+                Surface(
+                    modifier = Modifier.size(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = typeColor.copy(alpha = 0.15f)
                 ) {
-                    Icon(
-                        imageVector = material.type.icon(),
-                        contentDescription = "${material.type.name} icon",
-                        tint = typeColor,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = material.type.icon(),
+                            contentDescription = "${material.type.name} icon",
+                            tint = typeColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
 

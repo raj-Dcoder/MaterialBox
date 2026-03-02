@@ -33,9 +33,9 @@ val md_theme_light_onError = Color(0xFFFFFFFF)
 val md_theme_light_onErrorContainer = Color(0xFF410002)
 
 // Backgrounds & Surfaces
-val md_theme_light_background = Color(0xFFF8F9FE)       // Very subtle cool-white
+val md_theme_light_background = Color(0xFFF0F2F8)       // Soft cool gray-blue canvas
 val md_theme_light_onBackground = Color(0xFF1B1B21)
-val md_theme_light_surface = Color(0xFFF8F9FE)
+val md_theme_light_surface = Color(0xFFFFFFFF)          // Pure white cards to pop
 val md_theme_light_onSurface = Color(0xFF1B1B21)
 val md_theme_light_surfaceVariant = Color(0xFFE2E1EC)
 val md_theme_light_onSurfaceVariant = Color(0xFF45464F)

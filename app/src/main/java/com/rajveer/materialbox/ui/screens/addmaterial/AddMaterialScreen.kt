@@ -21,7 +21,6 @@ import com.rajveer.materialbox.data.entity.MaterialType
 fun AddMaterialScreen(
     navController: NavController,
     viewModel: AddMaterialViewModel = hiltViewModel(),
-    topicId: Long,
     materialType: String? = null
 ) {
     val title by viewModel.title.collectAsState()
@@ -52,7 +51,8 @@ fun AddMaterialScreen(
                 actions = {
                     IconButton(
                         onClick = { viewModel.saveMaterial { navController.navigateUp() } },
-                        enabled = title.isNotBlank() && !isLoading
+                        enabled = title.isNotBlank() && !isLoading && 
+                                (currentMaterialType != MaterialType.LINK || content.isNotBlank())
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "Save")
                     }
@@ -95,4 +95,4 @@ fun AddMaterialScreen(
             }
         }
     }
-}
+}SA

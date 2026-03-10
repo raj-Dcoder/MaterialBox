@@ -93,7 +93,6 @@ fun NavGraph(navController: NavHostController) {
             val materialType = backStackEntry.arguments?.getString("materialType")
             AddMaterialScreen(
                 navController = navController,
-                topicId = topicId,
                 materialType = materialType
             )
         }

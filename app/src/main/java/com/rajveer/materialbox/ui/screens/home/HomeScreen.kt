@@ -278,6 +278,8 @@ fun HomeScreen(
                 }
             } else {
                 items(subjects) { subject ->
+                    val topicCount by viewModel.getTopicCountForSubject(subject.id)
+                        .collectAsState(initial = 0)
                     SubjectCard(
                         subject = subject,
                         onClick = {
@@ -286,6 +288,7 @@ fun HomeScreen(
                         onLongPress = {
                             showDeleteSubjectDialog = subject
                         },
+                        topicCount = topicCount,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }

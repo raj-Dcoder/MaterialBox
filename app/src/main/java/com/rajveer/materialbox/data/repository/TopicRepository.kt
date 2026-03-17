@@ -31,4 +31,7 @@ class TopicRepository @Inject constructor(
 
     fun getTotalTopicCount(): Flow<Int> =
         topicDao.getTotalTopicCount()
+
+    fun getTopicCountForSubject(subjectId: Long): Flow<Int> =
+        topicDao.getTopicCountForSubject(subjectId)
 }

@@ -8,6 +8,7 @@ import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -80,6 +81,9 @@ class HomeViewModel @Inject constructor(
             subjectRepository.deleteSubject(subject)
         }
     }
+
+    fun getTopicCountForSubject(subjectId: Long): Flow<Int> =
+        topicRepository.getTopicCountForSubject(subjectId)
 
     enum class ViewMode {
         RECENTLY_ADDED,

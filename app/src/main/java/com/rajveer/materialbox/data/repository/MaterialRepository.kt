@@ -42,4 +42,7 @@ class MaterialRepository @Inject constructor(
 
     fun getTotalMaterialCount(): Flow<Int> =
         materialDao.getTotalMaterialCount()
+
+    fun getMaterialCountForTopic(topicId: Long): Flow<Int> =
+        materialDao.getMaterialCountForTopic(topicId)
 } 

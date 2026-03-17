@@ -35,6 +35,7 @@ fun SubjectCard(
     subject: Subject,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
+    topicCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     // Pick an accent color based on the subject's ID (consistent across sessions)
@@ -89,7 +90,7 @@ fun SubjectCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = subject.createdAt.toRelativeTimeString(),
+                    text = "$topicCount ${if (topicCount == 1) "topic" else "topics"} · ${subject.createdAt.toRelativeTimeString()}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

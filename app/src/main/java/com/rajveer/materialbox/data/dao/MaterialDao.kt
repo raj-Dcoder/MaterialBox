@@ -38,4 +38,7 @@ interface MaterialDao {
 
     @Query("SELECT COUNT(*) FROM materials")
     fun getTotalMaterialCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM materials WHERE topicId = :topicId")
+    fun getMaterialCountForTopic(topicId: Long): Flow<Int>
 } 

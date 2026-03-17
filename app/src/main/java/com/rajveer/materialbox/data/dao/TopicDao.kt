@@ -28,4 +28,7 @@ interface TopicDao {
 
     @Query("SELECT COUNT(*) FROM topics")
     fun getTotalTopicCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM topics WHERE subjectId = :subjectId")
+    fun getTopicCountForSubject(subjectId: Long): Flow<Int>
 }

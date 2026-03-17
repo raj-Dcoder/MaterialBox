@@ -21,6 +21,7 @@ fun TopicCard(
     topic: Topic,
     onClick: () -> Unit,
     onLongPress: () -> Unit,
+    materialCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -71,7 +72,7 @@ fun TopicCard(
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = topic.createdAt.toRelativeTimeString(),
+                    text = "$materialCount ${if (materialCount == 1) "material" else "materials"} · ${topic.createdAt.toRelativeTimeString()}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

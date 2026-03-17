@@ -85,22 +85,22 @@ fun TopicDetailScreen(
     }
 
     val pickDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        uri?.let {
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        uris.forEach { uri ->
             try {
                 val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
 
-                val fileName = getFileName(context, it) ?: "Untitled"
-                val fileExtension = getFileExtension(context, it)
+                val fileName = getFileName(context, uri) ?: "Untitled"
+                val fileExtension = getFileExtension(context, uri)
                 val inferredType = when (fileExtension?.lowercase()) {
                     "pdf" -> MaterialType.PDF
                     "docx" -> MaterialType.DOCX
                     "txt" -> MaterialType.TXT
-                    "jpg", "jpeg", "png" -> MaterialType.IMAGE
+                    "jpg", "jpeg", "png", "webp" -> MaterialType.IMAGE
                     else -> {
-                        val mimeType = context.contentResolver.getType(it)
+                        val mimeType = context.contentResolver.getType(uri)
                         when {
                             mimeType?.startsWith("image/") == true -> MaterialType.IMAGE
                             mimeType == "application/pdf" -> MaterialType.PDF
@@ -113,7 +113,7 @@ fun TopicDetailScreen(
 
                 if (inferredType != MaterialType.NOTE) {
                     viewModel.saveDocumentMaterial(
-                        uri = it,
+                        uri = uri,
                         title = fileName,
                         type = inferredType,
                         onSuccess = {
@@ -121,7 +121,7 @@ fun TopicDetailScreen(
                         }
                     )
                 } else {
-                    Toast.makeText(context, "This file type is not supported.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "File type not supported for: $fileName", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: SecurityException) {
                 e.printStackTrace()

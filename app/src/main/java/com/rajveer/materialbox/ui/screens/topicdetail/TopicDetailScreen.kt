@@ -47,6 +47,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
+import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.util.HapticUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +67,7 @@ fun TopicDetailScreen(
     var scannedDocumentName by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    // LocalView removed
 
     val scannerOptions = remember {
         GmsDocumentScannerOptions.Builder()
@@ -178,7 +181,10 @@ fun TopicDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(onClick = { 
+                        HapticUtils.playHeavyClick(context)
+                        showDeleteDialog = true 
+                    }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Topic")
                     }
                 },
@@ -201,6 +207,7 @@ fun TopicDetailScreen(
                     ) {
                         SmallFloatingActionButton(
                             onClick = {
+                                HapticUtils.playClick(context)
                                 context.findActivity()?.let { activity ->
                                     scanner.getStartScanIntent(activity)
                                         .addOnSuccessListener { intentSender ->
@@ -226,7 +233,10 @@ fun TopicDetailScreen(
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
                         SmallFloatingActionButton(
-                            onClick = { pickDocumentLauncher.launch(arrayOf("*/*")) },
+                            onClick = { 
+                                HapticUtils.playClick(context)
+                                pickDocumentLauncher.launch(arrayOf("*/*")) 
+                            },
                             containerColor = MaterialPdfColor.copy(alpha = 0.15f),
                             contentColor = MaterialPdfColor
                         ) {
@@ -242,6 +252,7 @@ fun TopicDetailScreen(
                     ) {
                         SmallFloatingActionButton(
                             onClick = {
+                                HapticUtils.playClick(context)
                                 topic?.let {
                                     navController.navigate(Screen.AddMaterial.createRoute(it.id))
                                 }
@@ -262,6 +273,7 @@ fun TopicDetailScreen(
                     ) {
                         SmallFloatingActionButton(
                             onClick = {
+                                HapticUtils.playClick(context)
                                 topic?.let {
                                     navController.navigate(Screen.AddMaterial.createRoute(it.id, MaterialType.LINK.name, ""))
                                 }
@@ -277,7 +289,10 @@ fun TopicDetailScreen(
 
                 // Main FAB
                 FloatingActionButton(
-                    onClick = { fabExpanded = !fabExpanded },
+                    onClick = { 
+                        HapticUtils.playClick(context)
+                        fabExpanded = !fabExpanded 
+                    },
                     shape = RoundedCornerShape(16.dp),
                     containerColor = MaterialTheme.colorScheme.primary
                 ) {
@@ -354,6 +369,7 @@ fun TopicDetailScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            HapticUtils.playHeavyClick(context)
                             viewModel.deleteTopic()
                             showDeleteDialog = false
                             navController.navigateUp()
@@ -379,6 +395,7 @@ fun TopicDetailScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            HapticUtils.playHeavyClick(context)
                             showDeleteMaterialDialog?.let { viewModel.deleteMaterial(it) }
                             showDeleteMaterialDialog = null
                         }

@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.util.HapticUtils
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 
@@ -23,6 +25,7 @@ fun AddSubjectScreen(
     val name by viewModel.name.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val focusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -39,7 +42,10 @@ fun AddSubjectScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.saveSubject { navController.navigateUp() } },
+                        onClick = { 
+                            HapticUtils.playHeavyClick(context)
+                            viewModel.saveSubject { navController.navigateUp() } 
+                        },
                         enabled = name.isNotBlank() && !isLoading
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "Save")

@@ -62,8 +62,14 @@ fun MaterialCard(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress,
+                onClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playClick(context)
+                    onClick()
+                },
+                onLongClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playHeavyClick(context)
+                    onLongPress()
+                },
                 onLongClickLabel = "More options",
                 onClickLabel = "Open material"
             ),

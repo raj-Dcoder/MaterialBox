@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.util.toRelativeTimeString
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -24,12 +25,19 @@ fun TopicCard(
     materialCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Card(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+                onClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playClick(context)
+                    onClick()
+                },
+                onLongClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playHeavyClick(context)
+                    onLongPress()
+                }
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(14.dp),

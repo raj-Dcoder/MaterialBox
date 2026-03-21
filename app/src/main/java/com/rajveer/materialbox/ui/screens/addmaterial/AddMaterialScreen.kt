@@ -12,6 +12,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.util.HapticUtils
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.rajveer.materialbox.data.entity.MaterialType
@@ -28,6 +30,7 @@ fun AddMaterialScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val currentMaterialType by viewModel.type.collectAsState()
     val focusRequester = remember { FocusRequester() }
+    val context = LocalContext.current
 
     LaunchedEffect(materialType) {
         if (materialType != null) {
@@ -50,7 +53,10 @@ fun AddMaterialScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.saveMaterial { navController.navigateUp() } },
+                        onClick = { 
+                            HapticUtils.playHeavyClick(context)
+                            viewModel.saveMaterial { navController.navigateUp() } 
+                        },
                         enabled = title.isNotBlank() && !isLoading && 
                                 (currentMaterialType != MaterialType.LINK || content.isNotBlank())
                     ) {

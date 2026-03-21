@@ -11,6 +11,8 @@ import androidx.compose.material.icons.outlined.Topic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.util.HapticUtils
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +36,7 @@ fun SubjectDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showTopicDeleteDialog by remember { mutableStateOf(false) }
     var topicToDelete by remember { mutableStateOf<Topic?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -51,7 +54,10 @@ fun SubjectDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showDeleteDialog = true }) {
+                    IconButton(onClick = { 
+                            HapticUtils.playHeavyClick(context)
+                        showDeleteDialog = true 
+                    }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Subject")
                     }
                 },
@@ -63,9 +69,8 @@ fun SubjectDetailScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
-                    subject?.let {
-                        navController.navigate(Screen.AddTopic.createRoute(it.id))
-                    }
+                    HapticUtils.playClick(context)
+                    navController.navigate(Screen.AddTopic.createRoute(subjectId))
                 },
                 shape = RoundedCornerShape(16.dp),
                 containerColor = MaterialTheme.colorScheme.primary
@@ -110,8 +115,8 @@ fun SubjectDetailScreen(
                     }
                 } else {
                     items(topics) { topic ->
-                        val materialCount by viewModel.getMaterialCountForTopic(topic.id)
-                            .collectAsState(initial = 0)
+                        // val materialCount by viewModel.getMaterialCountForTopic(topic.id)
+                        //     .collectAsState(initial = 0)
                         TopicCard(
                             topic = topic,
                             onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
@@ -119,7 +124,7 @@ fun SubjectDetailScreen(
                                 topicToDelete = topic
                                 showTopicDeleteDialog = true
                             },
-                            materialCount = materialCount
+                            materialCount = 0
                         )
                     }
                 }
@@ -138,6 +143,7 @@ fun SubjectDetailScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                                HapticUtils.playHeavyClick(context)
                             topicToDelete?.let { viewModel.deleteTopic(it) }
                             showTopicDeleteDialog = false
                         }

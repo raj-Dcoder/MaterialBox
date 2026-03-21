@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.util.toRelativeTimeString
+import androidx.compose.ui.platform.LocalContext
 
 // ============================================================
 // A list of subtle accent colors that cycle based on position.
@@ -40,13 +41,20 @@ fun SubjectCard(
 ) {
     // Pick an accent color based on the subject's ID (consistent across sessions)
     val accent = subjectAccentColors[(subject.id % subjectAccentColors.size).toInt()]
+    val context = LocalContext.current
 
     Card(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
+                onClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playClick(context)
+                    onClick()
+                },
+                onLongClick = {
+                    com.rajveer.materialbox.util.HapticUtils.playHeavyClick(context)
+                    onLongPress()
+                }
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp),

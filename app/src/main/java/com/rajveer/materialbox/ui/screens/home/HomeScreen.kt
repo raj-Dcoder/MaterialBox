@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.util.HapticUtils
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -86,6 +88,7 @@ fun HomeScreen(
     var showDeleteSubjectDialog by remember { mutableStateOf<Subject?>(null) }
 
     val context = LocalContext.current
+    // LocalView removed
     val listState = rememberLazyListState()
 
     // Show TopAppBar title only when the header is scrolled out of view
@@ -151,7 +154,10 @@ fun HomeScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate(Screen.AddSubject.route) },
+                onClick = {
+                    HapticUtils.playClick(context)
+                    navController.navigate(Screen.AddSubject.route)
+                },
                 shape = RoundedCornerShape(16.dp),
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
@@ -212,7 +218,10 @@ fun HomeScreen(
                 ) {
                     FilterChip(
                         selected = viewMode == HomeViewModel.ViewMode.RECENTLY_ADDED,
-                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.RECENTLY_ADDED) },
+                        onClick = { 
+                            HapticUtils.playClick(context)
+                            viewModel.setViewMode(HomeViewModel.ViewMode.RECENTLY_ADDED) 
+                        },
                         label = { Text("Recent") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -221,7 +230,10 @@ fun HomeScreen(
                     )
                     FilterChip(
                         selected = viewMode == HomeViewModel.ViewMode.MOST_VIEWED,
-                        onClick = { viewModel.setViewMode(HomeViewModel.ViewMode.MOST_VIEWED) },
+                        onClick = { 
+                            HapticUtils.playClick(context)
+                            viewModel.setViewMode(HomeViewModel.ViewMode.MOST_VIEWED) 
+                        },
                         label = { Text("Most Viewed") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -278,8 +290,8 @@ fun HomeScreen(
                 }
             } else {
                 items(subjects) { subject ->
-                    val topicCount by viewModel.getTopicCountForSubject(subject.id)
-                        .collectAsState(initial = 0)
+                    // val topicCount by viewModel.getTopicCountForSubject(subject.id)
+                    //     .collectAsState(initial = 0)
                     SubjectCard(
                         subject = subject,
                         onClick = {
@@ -288,7 +300,7 @@ fun HomeScreen(
                         onLongPress = {
                             showDeleteSubjectDialog = subject
                         },
-                        topicCount = topicCount,
+                        topicCount = 0,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -337,7 +349,10 @@ private fun CompactMaterialCard(
     val context = LocalContext.current
 
     Card(
-        onClick = onClick,
+        onClick = {
+            com.rajveer.materialbox.util.HapticUtils.playClick(context)
+            onClick()
+        },
         modifier = Modifier
             .width(150.dp)
             .height(100.dp),

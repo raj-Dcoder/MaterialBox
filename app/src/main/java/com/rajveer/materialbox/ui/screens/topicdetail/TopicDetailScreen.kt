@@ -39,6 +39,14 @@ import com.rajveer.materialbox.ui.components.MaterialCard
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 import com.rajveer.materialbox.ui.theme.*
 import java.io.File
+import android.app.Activity
+import android.content.ContextWrapper
+import androidx.activity.result.IntentSenderRequest
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.RESULT_FORMAT_PDF
+import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions.SCANNER_MODE_FULL
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
+import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,8 +61,32 @@ fun TopicDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showDeleteMaterialDialog by remember { mutableStateOf<Material?>(null) }
     var fabExpanded by remember { mutableStateOf(false) }
+    var scannedPdfUri by remember { mutableStateOf<Uri?>(null) }
+    var scannedDocumentName by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+
+    val scannerOptions = remember {
+        GmsDocumentScannerOptions.Builder()
+            .setGalleryImportAllowed(true)
+            .setPageLimit(20)
+            .setResultFormats(RESULT_FORMAT_PDF)
+            .setScannerMode(SCANNER_MODE_FULL)
+            .build()
+    }
+    val scanner = remember { GmsDocumentScanning.getClient(scannerOptions) }
+    
+    val scannerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
+            scanResult?.pdf?.let { pdf ->
+                scannedPdfUri = pdf.uri
+                scannedDocumentName = "${topic?.name ?: "Topic"} Scan"
+            }
+        }
+    }
 
     // File opener utility
     val handleOpenFile: (Material) -> Unit = { mat ->
@@ -161,6 +193,32 @@ fun TopicDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 if (fabExpanded) {
+                    // Scan document
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                context.findActivity()?.let { activity ->
+                                    scanner.getStartScanIntent(activity)
+                                        .addOnSuccessListener { intentSender ->
+                                            scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Toast.makeText(context, "Failed to open scanner", Toast.LENGTH_SHORT).show()
+                                        }
+                                }
+                                fabExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        ) {
+                            Icon(Icons.Default.CameraAlt, contentDescription = "Scan Document")
+                        }
+                    }
+
                     // Document upload
                     AnimatedVisibility(
                         visible = fabExpanded,
@@ -335,6 +393,49 @@ fun TopicDetailScreen(
                 }
             )
         }
+
+        // Rename Scanned Document Dialog
+        if (scannedPdfUri != null) {
+            AlertDialog(
+                onDismissRequest = { scannedPdfUri = null },
+                title = { Text("Name your scan") },
+                text = {
+                    OutlinedTextField(
+                        value = scannedDocumentName,
+                        onValueChange = { scannedDocumentName = it },
+                        label = { Text("Document Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val finalName = if (scannedDocumentName.isNotBlank()) {
+                                if (scannedDocumentName.endsWith(".pdf", ignoreCase = true)) scannedDocumentName else "$scannedDocumentName.pdf"
+                            } else "Untitled Scan.pdf"
+                            
+                            viewModel.saveDocumentMaterial(
+                                uri = scannedPdfUri!!,
+                                title = finalName,
+                                type = MaterialType.PDF,
+                                onSuccess = {
+                                    Toast.makeText(context, "'$finalName' saved.", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                            scannedPdfUri = null
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { scannedPdfUri = null }) {
+                        Text("Discard")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -364,4 +465,10 @@ fun getFileName(context: Context, uri: Uri): String? {
 fun getFileExtension(context: Context, uri: Uri): String? {
     val mimeType = context.contentResolver.getType(uri)
     return MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+}
+
+fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

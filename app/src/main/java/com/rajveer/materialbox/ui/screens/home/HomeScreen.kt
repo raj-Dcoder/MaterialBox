@@ -290,8 +290,8 @@ fun HomeScreen(
                 }
             } else {
                 items(subjects) { subject ->
-                    // val topicCount by viewModel.getTopicCountForSubject(subject.id)
-                    //     .collectAsState(initial = 0)
+                    val subjectTopicCount by viewModel.getTopicCountForSubject(subject.id).collectAsState(initial = 0)
+                    
                     SubjectCard(
                         subject = subject,
                         onClick = {
@@ -300,7 +300,7 @@ fun HomeScreen(
                         onLongPress = {
                             showDeleteSubjectDialog = subject
                         },
-                        topicCount = 0,
+                        topicCount = subjectTopicCount,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -370,10 +370,12 @@ private fun CompactMaterialCard(
         ) {
             // Type icon OR image thumbnail
             if (material.type == MaterialType.IMAGE) {
-                val imageFile = File(context.filesDir, material.pathOrUrl)
+                val isContentUri = material.pathOrUrl.startsWith("content://") || material.pathOrUrl.startsWith("file://")
+                val imageData: Any = if (isContentUri) android.net.Uri.parse(material.pathOrUrl) else java.io.File(context.filesDir, material.pathOrUrl)
+
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(imageFile)
+                        .data(imageData)
                         .crossfade(true)
                         .size(96)
                         .build(),

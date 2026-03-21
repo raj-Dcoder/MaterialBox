@@ -18,10 +18,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import javax.inject.Inject
+
+data class DocumentInfo(val uri: Uri, val title: String, val type: MaterialType)
 
 data class TopicDetailUiState(
     val topic: Topic? = null,
@@ -65,38 +64,28 @@ class TopicDetailViewModel @Inject constructor(
         }
     }
 
-    fun saveDocumentMaterial(uri: Uri, title: String, type: MaterialType, onSuccess: () -> Unit) {
+    fun saveDocumentMaterials(documents: List<DocumentInfo>, onResult: (added: Int, skipped: Int) -> Unit) {
         viewModelScope.launch {
-            val internalFileName = copyFileToInternalStorage(uri, title)
-            if (internalFileName != null) {
+            var added = 0
+            var skipped = 0
+            for (doc in documents) {
+                val existing = materialRepository.findMaterialByUriOrTitle(topicId, doc.uri.toString(), doc.title)
+                if (existing != null) {
+                    skipped++
+                    continue
+                }
+                
                 val material = Material(
-                    title = title,
-                    pathOrUrl = internalFileName,
-                    type = type,
+                    title = doc.title,
+                    pathOrUrl = doc.uri.toString(),
+                    type = doc.type,
                     topicId = topicId,
-                    originalFileUri = uri.toString()
+                    originalFileUri = doc.uri.toString()
                 )
                 materialRepository.insertMaterial(material)
-                onSuccess()
+                added++
             }
-            // Consider adding error handling to notify the user
-        }
-    }
-
-    private fun copyFileToInternalStorage(uri: Uri, originalFileName: String): String? {
-        return try {
-            val sanitizedFileName = originalFileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            val uniqueFileName = "${System.currentTimeMillis()}_${sanitizedFileName}"
-            val file = File(context.filesDir, uniqueFileName)
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                FileOutputStream(file).use { outputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            file.name
-        } catch (e: IOException) {
-            e.printStackTrace()
-            null
+            onResult(added, skipped)
         }
     }
 

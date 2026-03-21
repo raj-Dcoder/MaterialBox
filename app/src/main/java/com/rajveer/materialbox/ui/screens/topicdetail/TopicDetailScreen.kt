@@ -101,20 +101,34 @@ fun TopicDetailScreen(
                 Toast.makeText(context, "Could not open link", Toast.LENGTH_SHORT).show()
             }
         } else {
-            val file = File(context.filesDir, mat.pathOrUrl)
-            if (file.exists()) {
+            val isContentUri = mat.pathOrUrl.startsWith("content://") || mat.pathOrUrl.startsWith("file://")
+            if (isContentUri) {
                 try {
-                    val uri = FileProvider.getUriForFile(context, context.applicationContext.packageName + ".provider", file)
+                    val uri = Uri.parse(mat.pathOrUrl)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, context.contentResolver.getType(uri))
+                        setDataAndType(uri, context.contentResolver.getType(uri) ?: "*/*")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    Toast.makeText(context, "No application found to open this file", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "No app found to open this file", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
+                val file = File(context.filesDir, mat.pathOrUrl)
+                if (file.exists()) {
+                    try {
+                        val uri = FileProvider.getUriForFile(context, context.applicationContext.packageName + ".provider", file)
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, context.contentResolver.getType(uri))
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "No application found to open this file", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "File not found", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -122,6 +136,9 @@ fun TopicDetailScreen(
     val pickDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        
+        val docsToSave = mutableListOf<DocumentInfo>()
         uris.forEach { uri ->
             try {
                 val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
@@ -147,20 +164,25 @@ fun TopicDetailScreen(
                 }
 
                 if (inferredType != MaterialType.NOTE) {
-                    viewModel.saveDocumentMaterial(
-                        uri = uri,
-                        title = fileName,
-                        type = inferredType,
-                        onSuccess = {
-                            Toast.makeText(context, "'$fileName' added successfully.", Toast.LENGTH_SHORT).show()
-                        }
-                    )
+                    docsToSave.add(DocumentInfo(uri, fileName, inferredType))
                 } else {
                     Toast.makeText(context, "File type not supported for: $fileName", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: SecurityException) {
                 e.printStackTrace()
-                Toast.makeText(context, "Error: Could not get permission for the file.", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error: Could not get permission for a file.", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        if (docsToSave.isNotEmpty()) {
+            viewModel.saveDocumentMaterials(docsToSave) { added, skipped ->
+                if (added > 0 && skipped == 0) {
+                    Toast.makeText(context, "$added document(s) added successfully.", Toast.LENGTH_SHORT).show()
+                } else if (added > 0 && skipped > 0) {
+                    Toast.makeText(context, "$added added, $skipped skipped (duplicate).", Toast.LENGTH_LONG).show()
+                } else if (added == 0 && skipped > 0) {
+                    Toast.makeText(context, "$skipped duplicate document(s) skipped.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -432,14 +454,12 @@ fun TopicDetailScreen(
                                 if (scannedDocumentName.endsWith(".pdf", ignoreCase = true)) scannedDocumentName else "$scannedDocumentName.pdf"
                             } else "Untitled Scan.pdf"
                             
-                            viewModel.saveDocumentMaterial(
-                                uri = scannedPdfUri!!,
-                                title = finalName,
-                                type = MaterialType.PDF,
-                                onSuccess = {
-                                    Toast.makeText(context, "'$finalName' saved.", Toast.LENGTH_SHORT).show()
-                                }
-                            )
+                            viewModel.saveDocumentMaterials(
+                                listOf(DocumentInfo(scannedPdfUri!!, finalName, MaterialType.PDF))
+                            ) { added, skipped ->
+                                if (added > 0) Toast.makeText(context, "'$finalName' saved.", Toast.LENGTH_SHORT).show()
+                                else Toast.makeText(context, "Duplicate skipped.", Toast.LENGTH_SHORT).show()
+                            }
                             scannedPdfUri = null
                         }
                     ) {

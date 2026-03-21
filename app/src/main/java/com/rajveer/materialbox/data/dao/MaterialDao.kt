@@ -24,6 +24,9 @@ interface MaterialDao {
     @Query("SELECT * FROM materials WHERE originalFileUri IS NOT NULL")
     fun getMaterialsWithOriginalUri(): Flow<List<Material>>
 
+    @Query("SELECT * FROM materials WHERE topicId = :topicId AND (originalFileUri = :uri OR title = :title) LIMIT 1")
+    suspend fun findMaterialByUriOrTitle(topicId: Long, uri: String, title: String): Material?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMaterial(material: Material): Long
 

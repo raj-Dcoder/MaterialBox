@@ -88,10 +88,12 @@ fun MaterialCard(
             // Type icon OR image thumbnail for IMAGE type
             if (material.type == MaterialType.IMAGE) {
                 // Show actual image thumbnail
-                val imageFile = File(context.filesDir, material.pathOrUrl)
+                val isContentUri = material.pathOrUrl.startsWith("content://") || material.pathOrUrl.startsWith("file://")
+                val imageData: Any = if (isContentUri) android.net.Uri.parse(material.pathOrUrl) else java.io.File(context.filesDir, material.pathOrUrl)
+                
                 AsyncImage(
                     model = ImageRequest.Builder(context)
-                        .data(imageFile)
+                        .data(imageData)
                         .crossfade(true)
                         .size(128) // thumbnail size in px
                         .build(),

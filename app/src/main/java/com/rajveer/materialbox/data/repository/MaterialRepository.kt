@@ -28,6 +28,9 @@ class MaterialRepository @Inject constructor(
     fun getMaterialsWithOriginalUri(): Flow<List<Material>> =
         materialDao.getMaterialsWithOriginalUri()
 
+    suspend fun findMaterialByUriOrTitle(topicId: Long, uri: String, title: String): Material? =
+        materialDao.findMaterialByUriOrTitle(topicId, uri, title)
+
     suspend fun insertMaterial(material: Material): Long =
         materialDao.insertMaterial(material)
 

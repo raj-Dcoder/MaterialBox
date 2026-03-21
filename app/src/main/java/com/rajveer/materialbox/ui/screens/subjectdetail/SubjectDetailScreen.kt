@@ -115,8 +115,7 @@ fun SubjectDetailScreen(
                     }
                 } else {
                     items(topics) { topic ->
-                        // val materialCount by viewModel.getMaterialCountForTopic(topic.id)
-                        //     .collectAsState(initial = 0)
+                        val topicMaterialCount by viewModel.getMaterialCountForTopic(topic.id).collectAsState(initial = 0)
                         TopicCard(
                             topic = topic,
                             onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
@@ -124,7 +123,7 @@ fun SubjectDetailScreen(
                                 topicToDelete = topic
                                 showTopicDeleteDialog = true
                             },
-                            materialCount = 0
+                            materialCount = topicMaterialCount
                         )
                     }
                 }

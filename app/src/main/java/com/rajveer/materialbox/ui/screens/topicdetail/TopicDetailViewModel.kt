@@ -86,18 +86,46 @@ class TopicDetailViewModel @Inject constructor(
                 // Determine if this is a temporary cache file (e.g. from Scanner) that needs to be copied into persistent storage
                 var finalPath = doc.uri.toString()
                 if (doc.uri.scheme == "file") {
-                    val fileName = "${System.currentTimeMillis()}_${doc.uri.lastPathSegment ?: "scanned.pdf"}"
-                    val destFile = File(context.filesDir, fileName)
-                    try {
-                        context.contentResolver.openInputStream(doc.uri)?.use { input ->
-                            FileOutputStream(destFile).use { output ->
-                                input.copyTo(output)
-                            }
+                    val fileName = "${System.currentTimeMillis()}_${doc.title}.pdf"
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        val contentValues = android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                            put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOCUMENTS + "/MaterialBox")
                         }
-                        finalPath = fileName // Store absolute filename so UI falls back to FileProvider
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        continue // Skip if copy failed
+                        val collection = android.provider.MediaStore.Files.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                        val destUri = context.contentResolver.insert(collection, contentValues)
+                        
+                        if (destUri != null) {
+                            try {
+                                context.contentResolver.openOutputStream(destUri)?.use { out ->
+                                    context.contentResolver.openInputStream(doc.uri)?.use { input ->
+                                        input.copyTo(out)
+                                    }
+                                }
+                                finalPath = destUri.toString()
+                            } catch(e: Exception) {
+                                e.printStackTrace()
+                                continue
+                            }
+                        } else {
+                            continue
+                        }
+                    } else {
+                        // Fallback to internal filesDir for older devices to avoid invasive runtime permissions
+                        val destFile = File(context.filesDir, fileName)
+                        try {
+                            FileOutputStream(destFile).use { out ->
+                                context.contentResolver.openInputStream(doc.uri)?.use { input ->
+                                    input.copyTo(out)
+                                }
+                            }
+                            finalPath = fileName 
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            continue 
+                        }
                     }
                 }
 

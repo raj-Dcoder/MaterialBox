@@ -22,8 +22,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,6 +34,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -56,6 +60,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import com.rajveer.materialbox.util.HapticUtils
 import androidx.compose.ui.unit.sp
@@ -94,6 +100,20 @@ fun HomeScreen(
     // Show TopAppBar title only when the header is scrolled out of view
     val showTopBarTitle by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 0 }
+    }
+
+    var showSettingsMenu by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        uri?.let { viewModel.exportDatabase(it) }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { viewModel.importDatabase(it) }
     }
 
     // ============================================================
@@ -149,7 +169,33 @@ fun HomeScreen(
                         MaterialTheme.colorScheme.background
                     else
                         Color.Transparent
-                )
+                ),
+                actions = {
+                    Box {
+                        IconButton(onClick = { showSettingsMenu = true }) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurface)
+                        }
+                        DropdownMenu(
+                            expanded = showSettingsMenu,
+                            onDismissRequest = { showSettingsMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export Vault Backup (.mbox)") },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    exportLauncher.launch("MaterialBox_Backup_${System.currentTimeMillis()}.mbox")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Restore Vault Backup") },
+                                onClick = {
+                                    showSettingsMenu = false
+                                    importLauncher.launch(arrayOf("*/*"))
+                                }
+                            )
+                        }
+                    }
+                }
             )
         },
         floatingActionButton = {
@@ -369,22 +415,33 @@ private fun CompactMaterialCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             // Type icon OR image thumbnail
-            if (material.type == MaterialType.IMAGE) {
-                val isContentUri = material.pathOrUrl.startsWith("content://") || material.pathOrUrl.startsWith("file://")
-                val imageData: Any = if (isContentUri) android.net.Uri.parse(material.pathOrUrl) else java.io.File(context.filesDir, material.pathOrUrl)
+            val isLinkWithThumbnail = material.type == MaterialType.LINK && com.rajveer.materialbox.ui.components.getLinkThumbnailUrl(material.pathOrUrl) != null
 
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageData)
-                        .crossfade(true)
-                        .size(96)
-                        .build(),
-                    contentDescription = "Image thumbnail",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                )
+            if (material.type == MaterialType.IMAGE || isLinkWithThumbnail) {
+                val modelData: Any? = if (material.type == MaterialType.IMAGE) {
+                    val isContentUri = material.pathOrUrl.startsWith("content://") || material.pathOrUrl.startsWith("file://")
+                    if (isContentUri) android.net.Uri.parse(material.pathOrUrl) else java.io.File(context.filesDir, material.pathOrUrl)
+                } else {
+                    com.rajveer.materialbox.ui.components.getLinkThumbnailUrl(material.pathOrUrl)
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(modelData)
+                            .crossfade(true)
+                            .size(96)
+                            .build(),
+                        contentDescription = "Preview thumbnail",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
             } else {
                 Surface(
                     modifier = Modifier.size(32.dp),

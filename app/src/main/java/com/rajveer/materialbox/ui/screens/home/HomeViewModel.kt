@@ -10,6 +10,7 @@ import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
+import android.net.Uri
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -117,6 +118,28 @@ class HomeViewModel @Inject constructor(
                 if (file.exists()) file.delete()
             }
             subjectRepository.deleteSubject(subject)
+        }
+    }
+
+    fun exportDatabase(uri: Uri) {
+        viewModelScope.launch {
+            val success = com.rajveer.materialbox.util.BackupManager.exportDatabaseToMbox(context, uri)
+            if (success) {
+                android.widget.Toast.makeText(context, "Export successful", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                android.widget.Toast.makeText(context, "Export failed", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun importDatabase(uri: Uri) {
+        viewModelScope.launch {
+            val success = com.rajveer.materialbox.util.BackupManager.importDatabaseFromMbox(context, uri)
+            if (success) {
+                android.widget.Toast.makeText(context, "Import successful. Please completely close and restart the app.", android.widget.Toast.LENGTH_LONG).show()
+            } else {
+                android.widget.Toast.makeText(context, "Import failed", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

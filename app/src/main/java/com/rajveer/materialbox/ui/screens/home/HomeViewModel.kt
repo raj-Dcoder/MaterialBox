@@ -110,6 +110,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun updateSubject(subject: Subject) {
+        viewModelScope.launch {
+            subjectRepository.updateSubject(subject)
+        }
+    }
+
     fun deleteSubject(subject: Subject) {
         viewModelScope.launch {
             val filePaths = materialRepository.getLocalFilePathsForSubject(subject.id)

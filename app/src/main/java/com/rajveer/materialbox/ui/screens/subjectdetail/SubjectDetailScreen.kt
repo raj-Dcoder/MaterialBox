@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Topic
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
@@ -21,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.navigation.Screen
+import com.rajveer.materialbox.ui.components.ActionMenuBottomSheet
 import com.rajveer.materialbox.ui.components.TopicCard
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 
@@ -34,8 +36,9 @@ fun SubjectDetailScreen(
     val subject by viewModel.subject.collectAsState()
     val topics by viewModel.topics.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var showTopicDeleteDialog by remember { mutableStateOf(false) }
-    var topicToDelete by remember { mutableStateOf<Topic?>(null) }
+    var selectedActionTopic by remember { mutableStateOf<Topic?>(null) }
+    var showEditTopicDialog by remember { mutableStateOf<Topic?>(null) }
+    var showTopicDeleteDialog by remember { mutableStateOf<Topic?>(null) }
     val context = LocalContext.current
 
     Scaffold(
@@ -120,8 +123,7 @@ fun SubjectDetailScreen(
                             topic = topic,
                             onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
                             onLongPress = {
-                                topicToDelete = topic
-                                showTopicDeleteDialog = true
+                                selectedActionTopic = topic
                             },
                             materialCount = topicMaterialCount
                         )
@@ -133,25 +135,72 @@ fun SubjectDetailScreen(
             }
         }
 
-        // Delete topic dialog
-        if (showTopicDeleteDialog) {
+        // Action Menu Bottom Sheet
+        if (selectedActionTopic != null) {
+            ActionMenuBottomSheet(
+                title = selectedActionTopic?.name ?: "Options",
+                onDismissRequest = { selectedActionTopic = null },
+                onEditClick = { showEditTopicDialog = selectedActionTopic },
+                onDeleteClick = { showTopicDeleteDialog = selectedActionTopic }
+            )
+        }
+
+        // Edit topic dialog
+        if (showEditTopicDialog != null) {
+            var editedName by remember { mutableStateOf(showEditTopicDialog?.name ?: "") }
             AlertDialog(
-                onDismissRequest = { showTopicDeleteDialog = false },
+                onDismissRequest = { showEditTopicDialog = null },
+                title = { Text("Rename Topic") },
+                text = {
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Topic Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (editedName.isNotBlank()) {
+                                showEditTopicDialog?.let { topic ->
+                                    viewModel.updateTopic(topic.copy(name = editedName.trim()))
+                                }
+                                showEditTopicDialog = null
+                            }
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditTopicDialog = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Delete topic dialog
+        if (showTopicDeleteDialog != null) {
+            AlertDialog(
+                onDismissRequest = { showTopicDeleteDialog = null },
                 title = { Text("Delete Topic") },
                 text = { Text("This will also delete all materials inside it.") },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                                HapticUtils.playHeavyClick(context)
-                            topicToDelete?.let { viewModel.deleteTopic(it) }
-                            showTopicDeleteDialog = false
+                            HapticUtils.playHeavyClick(context)
+                            showTopicDeleteDialog?.let { viewModel.deleteTopic(it) }
+                            showTopicDeleteDialog = null
                         }
                     ) {
                         Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showTopicDeleteDialog = false }) {
+                    TextButton(onClick = { showTopicDeleteDialog = null }) {
                         Text("Cancel")
                     }
                 }

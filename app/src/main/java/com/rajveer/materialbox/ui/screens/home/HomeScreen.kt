@@ -3,6 +3,7 @@ package com.rajveer.materialbox.ui.screens.home
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -74,6 +75,7 @@ import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.navigation.Screen
+import com.rajveer.materialbox.ui.components.ActionMenuBottomSheet
 import com.rajveer.materialbox.ui.components.SubjectCard
 import com.rajveer.materialbox.ui.components.accentColor
 import com.rajveer.materialbox.ui.components.icon
@@ -91,6 +93,8 @@ fun HomeScreen(
     val viewMode by viewModel.viewMode.collectAsState()
     val topicCount by viewModel.topicCount.collectAsState()
     val materialCount by viewModel.materialCount.collectAsState()
+    var selectedActionSubject by remember { mutableStateOf<Subject?>(null) }
+    var showEditSubjectDialog by remember { mutableStateOf<Subject?>(null) }
     var showDeleteSubjectDialog by remember { mutableStateOf<Subject?>(null) }
 
     val context = LocalContext.current
@@ -344,7 +348,7 @@ fun HomeScreen(
                             navController.navigate(Screen.SubjectDetail.createRoute(subject.id))
                         },
                         onLongPress = {
-                            showDeleteSubjectDialog = subject
+                            selectedActionSubject = subject
                         },
                         topicCount = subjectTopicCount,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -354,6 +358,53 @@ fun HomeScreen(
 
             // Bottom spacer so content doesn't sit behind the FAB
             item { Spacer(modifier = Modifier.height(80.dp)) }
+        }
+
+        // Action Menu Bottom Sheet
+        if (selectedActionSubject != null) {
+            ActionMenuBottomSheet(
+                title = selectedActionSubject?.name ?: "Options",
+                onDismissRequest = { selectedActionSubject = null },
+                onEditClick = { showEditSubjectDialog = selectedActionSubject },
+                onDeleteClick = { showDeleteSubjectDialog = selectedActionSubject }
+            )
+        }
+
+        // Edit subject dialog
+        if (showEditSubjectDialog != null) {
+            var editedName by remember { mutableStateOf(showEditSubjectDialog?.name ?: "") }
+            AlertDialog(
+                onDismissRequest = { showEditSubjectDialog = null },
+                title = { Text("Rename Subject") },
+                text = {
+                    OutlinedTextField(
+                        value = editedName,
+                        onValueChange = { editedName = it },
+                        label = { Text("Subject Name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (editedName.isNotBlank()) {
+                                showEditSubjectDialog?.let { subject ->
+                                    viewModel.updateSubject(subject.copy(name = editedName.trim()))
+                                }
+                                showEditSubjectDialog = null
+                            }
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditSubjectDialog = null }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         // Delete subject confirmation dialog

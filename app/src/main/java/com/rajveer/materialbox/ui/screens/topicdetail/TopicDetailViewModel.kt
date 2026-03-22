@@ -68,6 +68,12 @@ class TopicDetailViewModel @Inject constructor(
         }
     }
 
+    fun updateMaterial(material: Material) {
+        viewModelScope.launch {
+            materialRepository.updateMaterial(material)
+        }
+    }
+
     fun deleteMaterial(material: Material) {
         viewModelScope.launch {
             if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {

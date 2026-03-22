@@ -57,6 +57,12 @@ class SubjectDetailViewModel @Inject constructor(
         }
     }
 
+    fun updateTopic(topic: Topic) {
+        viewModelScope.launch {
+            topicRepository.updateTopic(topic)
+        }
+    }
+
     fun deleteTopic(topic: Topic) {
         viewModelScope.launch {
             val filePaths = materialRepository.getLocalFilePathsForTopic(topic.id)

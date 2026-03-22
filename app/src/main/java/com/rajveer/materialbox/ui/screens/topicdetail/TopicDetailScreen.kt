@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.*
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +36,7 @@ import androidx.navigation.NavController
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.navigation.Screen
+import com.rajveer.materialbox.ui.components.ActionMenuBottomSheet
 import com.rajveer.materialbox.ui.components.MaterialCard
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 import com.rajveer.materialbox.ui.theme.*
@@ -64,6 +66,8 @@ fun TopicDetailScreen(
     val topic = uiState.topic
     val materials = uiState.materials
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedActionMaterial by remember { mutableStateOf<Material?>(null) }
+    var showEditMaterialDialog by remember { mutableStateOf<Material?>(null) }
     var showDeleteMaterialDialog by remember { mutableStateOf<Material?>(null) }
     var fabExpanded by remember { mutableStateOf(false) }
     var scannedPdfUri by remember { mutableStateOf<Uri?>(null) }
@@ -375,7 +379,7 @@ fun TopicDetailScreen(
                                 }
                             },
                             onLongPress = {
-                                showDeleteMaterialDialog = material
+                                selectedActionMaterial = material
                             }
                         )
                     }
@@ -406,6 +410,70 @@ fun TopicDetailScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Action Menu Bottom Sheet
+        if (selectedActionMaterial != null) {
+            ActionMenuBottomSheet(
+                title = selectedActionMaterial?.title ?: "Options",
+                onDismissRequest = { selectedActionMaterial = null },
+                onEditClick = { showEditMaterialDialog = selectedActionMaterial },
+                onDeleteClick = { showDeleteMaterialDialog = selectedActionMaterial }
+            )
+        }
+
+        // Edit Material dialog
+        if (showEditMaterialDialog != null) {
+            val materialToEdit = showEditMaterialDialog!!
+            var editedTitle by remember { mutableStateOf(materialToEdit.title) }
+            var editedUrl by remember { mutableStateOf(materialToEdit.pathOrUrl) }
+            
+            AlertDialog(
+                onDismissRequest = { showEditMaterialDialog = null },
+                title = { Text("Edit Material") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = editedTitle,
+                            onValueChange = { editedTitle = it },
+                            label = { Text("Title") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (materialToEdit.type == MaterialType.LINK) {
+                            OutlinedTextField(
+                                value = editedUrl,
+                                onValueChange = { editedUrl = it },
+                                label = { Text("URL Link") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (editedTitle.isNotBlank()) {
+                                viewModel.updateMaterial(
+                                    materialToEdit.copy(
+                                        title = editedTitle.trim(),
+                                        pathOrUrl = if (materialToEdit.type == MaterialType.LINK) editedUrl.trim() else materialToEdit.pathOrUrl
+                                    )
+                                )
+                                showEditMaterialDialog = null
+                            }
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditMaterialDialog = null }) {
                         Text("Cancel")
                     }
                 }

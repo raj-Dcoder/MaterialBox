@@ -8,6 +8,8 @@ import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,11 +24,42 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
     private val materialRepository: MaterialRepository,
-    private val topicRepository: TopicRepository
+    private val topicRepository: TopicRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(ViewMode.RECENTLY_ADDED)
     val viewMode: StateFlow<ViewMode> = _viewMode
+
+    init {
+        viewModelScope.launch {
+            cleanOrphanedFiles()
+        }
+    }
+
+    private suspend fun cleanOrphanedFiles() {
+        try {
+            val validFiles = materialRepository.getAllLocalFilePaths().toSet()
+            val filesDir = context.filesDir
+            val files = filesDir.listFiles() ?: return
+            
+            var deletedCount = 0
+            files.forEach { file ->
+                if (file.isFile && file.name !in validFiles) {
+                    if (file.name != "profile") {
+                        file.delete()
+                        deletedCount++
+                        android.util.Log.d("HomeViewModel", "Deleted orphaned ghost file: ${file.name}")
+                    }
+                }
+            }
+            if (deletedCount > 0) {
+                android.util.Log.d("HomeViewModel", "Cleaned up $deletedCount orphaned files.")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Failed to clean orphaned files", e)
+        }
+    }
 
     val subjects = subjectRepository.getAllSubjects()
         .stateIn(
@@ -78,6 +111,11 @@ class HomeViewModel @Inject constructor(
 
     fun deleteSubject(subject: Subject) {
         viewModelScope.launch {
+            val filePaths = materialRepository.getLocalFilePathsForSubject(subject.id)
+            filePaths.forEach { path ->
+                val file = java.io.File(context.filesDir, path)
+                if (file.exists()) file.delete()
+            }
             subjectRepository.deleteSubject(subject)
         }
     }

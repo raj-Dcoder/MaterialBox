@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 data class DocumentInfo(val uri: Uri, val title: String, val type: MaterialType)
@@ -42,7 +44,7 @@ class TopicDetailViewModel @Inject constructor(
         .map { topicWithMaterials ->
             TopicDetailUiState(
                 topic = topicWithMaterials.topic,
-                materials = topicWithMaterials.materials,
+                materials = topicWithMaterials.materials.sortedByDescending { it.createdAt },
                 isLoading = false
             )
         }
@@ -54,12 +56,24 @@ class TopicDetailViewModel @Inject constructor(
 
     fun deleteTopic() {
         viewModelScope.launch {
-            uiState.value.topic?.let { topicRepository.deleteTopic(it) }
+            uiState.value.topic?.let { topic ->
+                uiState.value.materials.forEach { material ->
+                    if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {
+                        val file = File(context.filesDir, material.pathOrUrl)
+                        if (file.exists()) file.delete()
+                    }
+                }
+                topicRepository.deleteTopic(topic) 
+            }
         }
     }
 
     fun deleteMaterial(material: Material) {
         viewModelScope.launch {
+            if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {
+                val file = File(context.filesDir, material.pathOrUrl)
+                if (file.exists()) file.delete()
+            }
             materialRepository.deleteMaterial(material)
         }
     }
@@ -69,7 +83,25 @@ class TopicDetailViewModel @Inject constructor(
             var added = 0
             var skipped = 0
             for (doc in documents) {
-                val existing = materialRepository.findMaterialByUriOrTitle(topicId, doc.uri.toString(), doc.title)
+                // Determine if this is a temporary cache file (e.g. from Scanner) that needs to be copied into persistent storage
+                var finalPath = doc.uri.toString()
+                if (doc.uri.scheme == "file") {
+                    val fileName = "${System.currentTimeMillis()}_${doc.uri.lastPathSegment ?: "scanned.pdf"}"
+                    val destFile = File(context.filesDir, fileName)
+                    try {
+                        context.contentResolver.openInputStream(doc.uri)?.use { input ->
+                            FileOutputStream(destFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        finalPath = fileName // Store absolute filename so UI falls back to FileProvider
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        continue // Skip if copy failed
+                    }
+                }
+
+                val existing = materialRepository.findMaterialByUriOrTitle(topicId, finalPath, doc.title)
                 if (existing != null) {
                     skipped++
                     continue
@@ -77,7 +109,7 @@ class TopicDetailViewModel @Inject constructor(
                 
                 val material = Material(
                     title = doc.title,
-                    pathOrUrl = doc.uri.toString(),
+                    pathOrUrl = finalPath,
                     type = doc.type,
                     topicId = topicId,
                     originalFileUri = doc.uri.toString()

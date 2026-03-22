@@ -48,4 +48,13 @@ class MaterialRepository @Inject constructor(
 
     fun getMaterialCountForTopic(topicId: Long): Flow<Int> =
         materialDao.getMaterialCountForTopic(topicId)
+
+    suspend fun getLocalFilePathsForSubject(subjectId: Long): List<String> =
+        materialDao.getLocalFilePathsForSubject(subjectId)
+
+    suspend fun getLocalFilePathsForTopic(topicId: Long): List<String> =
+        materialDao.getLocalFilePathsForTopic(topicId)
+
+    suspend fun getAllLocalFilePaths(): List<String> =
+        materialDao.getAllLocalFilePaths()
 } 

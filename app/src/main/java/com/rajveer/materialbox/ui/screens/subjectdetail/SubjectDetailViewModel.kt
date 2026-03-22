@@ -10,6 +10,8 @@ import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,7 +21,8 @@ class SubjectDetailViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
     private val topicRepository: TopicRepository,
     private val materialRepository: MaterialRepository,
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val subjectId: Long = checkNotNull(savedStateHandle["subjectId"])
@@ -43,6 +46,11 @@ class SubjectDetailViewModel @Inject constructor(
     fun deleteSubject() {
         viewModelScope.launch {
             _subject.value?.let { subject ->
+                val filePaths = materialRepository.getLocalFilePathsForSubject(subject.id)
+                filePaths.forEach { path ->
+                    val file = java.io.File(context.filesDir, path)
+                    if (file.exists()) file.delete()
+                }
                 subjectRepository.deleteSubject(subject)
                 Log.d("SubjectViewModel", "Subject deleted: ${subject.id}")
             }
@@ -51,6 +59,11 @@ class SubjectDetailViewModel @Inject constructor(
 
     fun deleteTopic(topic: Topic) {
         viewModelScope.launch {
+            val filePaths = materialRepository.getLocalFilePathsForTopic(topic.id)
+            filePaths.forEach { path ->
+                val file = java.io.File(context.filesDir, path)
+                if (file.exists()) file.delete()
+            }
             topicRepository.deleteTopic(topic)
             Log.d("SubjectViewModel", "Topic deleted: ${topic.id}")
         }

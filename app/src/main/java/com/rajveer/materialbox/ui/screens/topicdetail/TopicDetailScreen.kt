@@ -39,6 +39,9 @@ import com.rajveer.materialbox.ui.components.MaterialCard
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 import com.rajveer.materialbox.ui.theme.*
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.app.Activity
 import android.content.ContextWrapper
 import androidx.activity.result.IntentSenderRequest
@@ -86,7 +89,8 @@ fun TopicDetailScreen(
             val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(result.data)
             scanResult?.pdf?.let { pdf ->
                 scannedPdfUri = pdf.uri
-                scannedDocumentName = "${topic?.name ?: "Topic"} Scan"
+                val timeStamp = SimpleDateFormat("yyyy-MM-dd (HH:mm)", Locale.getDefault()).format(Date())
+                scannedDocumentName = "Scan - ${topic?.name ?: "Topic"} - $timeStamp"
             }
         }
     }

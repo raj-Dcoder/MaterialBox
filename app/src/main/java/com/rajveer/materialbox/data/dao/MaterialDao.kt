@@ -44,4 +44,28 @@ interface MaterialDao {
 
     @Query("SELECT COUNT(*) FROM materials WHERE topicId = :topicId")
     fun getMaterialCountForTopic(topicId: Long): Flow<Int>
+
+    @Query("""
+        SELECT m.pathOrUrl FROM materials m
+        INNER JOIN topics t ON m.topicId = t.id
+        WHERE t.subjectId = :subjectId
+          AND m.pathOrUrl NOT LIKE 'content://%'
+          AND m.pathOrUrl NOT LIKE 'http%'
+    """)
+    suspend fun getLocalFilePathsForSubject(subjectId: Long): List<String>
+
+    @Query("""
+        SELECT pathOrUrl FROM materials
+        WHERE topicId = :topicId
+          AND pathOrUrl NOT LIKE 'content://%'
+          AND pathOrUrl NOT LIKE 'http%'
+    """)
+    suspend fun getLocalFilePathsForTopic(topicId: Long): List<String>
+
+    @Query("""
+        SELECT pathOrUrl FROM materials
+        WHERE pathOrUrl NOT LIKE 'content://%'
+          AND pathOrUrl NOT LIKE 'http%'
+    """)
+    suspend fun getAllLocalFilePaths(): List<String>
 } 

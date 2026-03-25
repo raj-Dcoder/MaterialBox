@@ -1,5 +1,11 @@
 package com.rajveer.materialbox.ui.screens.subjectdetail
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Topic
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
@@ -21,9 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.entity.YoutubeFeed
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.ActionMenuBottomSheet
 import com.rajveer.materialbox.ui.components.TopicCard
+import com.rajveer.materialbox.ui.components.YoutubeFeedCard
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,10 +44,13 @@ fun SubjectDetailScreen(
 ) {
     val subject by viewModel.subject.collectAsState()
     val topics by viewModel.topics.collectAsState()
+    val youtubeFeeds by viewModel.youtubeFeeds.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedActionTopic by remember { mutableStateOf<Topic?>(null) }
+    var selectedActionYoutubeFeed by remember { mutableStateOf<YoutubeFeed?>(null) }
     var showEditTopicDialog by remember { mutableStateOf<Topic?>(null) }
     var showTopicDeleteDialog by remember { mutableStateOf<Topic?>(null) }
+    var fabExpanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Scaffold(
@@ -70,16 +82,64 @@ fun SubjectDetailScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    HapticUtils.playClick(context)
-                    navController.navigate(Screen.AddTopic.createRoute(subjectId))
-                },
-                shape = RoundedCornerShape(16.dp),
-                containerColor = MaterialTheme.colorScheme.primary
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Topic",
-                    tint = MaterialTheme.colorScheme.onPrimary)
+                if (fabExpanded) {
+                    // Add Youtube Feed
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                HapticUtils.playClick(context)
+                                navController.navigate(Screen.AddYoutubeFeed.createRoute(subjectId))
+                                fabExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.VideoLibrary, contentDescription = "Add Youtube Feed")
+                        }
+                    }
+
+                    // Add Topic
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn(tween(250)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(250)),
+                        exit = fadeOut(tween(250)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(250))
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                HapticUtils.playClick(context)
+                                navController.navigate(Screen.AddTopic.createRoute(subjectId))
+                                fabExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.Topic, contentDescription = "Add Topic")
+                        }
+                    }
+                }
+
+                FloatingActionButton(
+                    onClick = {
+                        HapticUtils.playClick(context)
+                        fabExpanded = !fabExpanded
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(
+                        if (fabExpanded) Icons.Default.Close else Icons.Default.Add,
+                        contentDescription = "Expand menu",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
     ) { padding ->
@@ -108,25 +168,47 @@ fun SubjectDetailScreen(
                     )
                 }
 
-                if (topics.isEmpty()) {
+                if (topics.isEmpty() && youtubeFeeds.isEmpty()) {
                     item {
                         EmptyStateCard(
                             icon = Icons.Outlined.Topic,
-                            title = "No topics yet",
-                            subtitle = "Tap the + button to add your first topic"
+                            title = "No content yet",
+                            subtitle = "Tap the + button to add a topic or YouTube feed"
                         )
                     }
                 } else {
-                    items(topics) { topic ->
-                        val topicMaterialCount by viewModel.getMaterialCountForTopic(topic.id).collectAsState(initial = 0)
-                        TopicCard(
-                            topic = topic,
-                            onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
-                            onLongPress = {
-                                selectedActionTopic = topic
-                            },
-                            materialCount = topicMaterialCount
-                        )
+                    if (topics.isNotEmpty()) {
+                        items(topics) { topic ->
+                            val topicMaterialCount by viewModel.getMaterialCountForTopic(topic.id).collectAsState(initial = 0)
+                            TopicCard(
+                                topic = topic,
+                                onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
+                                onLongPress = {
+                                    selectedActionTopic = topic
+                                },
+                                materialCount = topicMaterialCount
+                            )
+                        }
+                    }
+
+                    if (youtubeFeeds.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "YouTube Feeds",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 16.dp)
+                            )
+                        }
+
+                        items(youtubeFeeds) { feed ->
+                            YoutubeFeedCard(
+                                feed = feed,
+                                onClick = { navController.navigate(Screen.YoutubeFeedDetail.createRoute(feed.id)) },
+                                onLongPress = {
+                                    selectedActionYoutubeFeed = feed
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -135,13 +217,27 @@ fun SubjectDetailScreen(
             }
         }
 
-        // Action Menu Bottom Sheet
+        // Action Menu Bottom Sheet for Topics
         if (selectedActionTopic != null) {
             ActionMenuBottomSheet(
                 title = selectedActionTopic?.name ?: "Options",
                 onDismissRequest = { selectedActionTopic = null },
                 onEditClick = { showEditTopicDialog = selectedActionTopic },
                 onDeleteClick = { showTopicDeleteDialog = selectedActionTopic }
+            )
+        }
+
+        // Action Menu Bottom Sheet for YouTube Feeds
+        if (selectedActionYoutubeFeed != null) {
+            ActionMenuBottomSheet(
+                title = selectedActionYoutubeFeed?.name ?: "Options",
+                onDismissRequest = { selectedActionYoutubeFeed = null },
+                onEditClick = null, // Edit not implemented yet for feeds
+                onDeleteClick = { 
+                    HapticUtils.playHeavyClick(context)
+                    selectedActionYoutubeFeed?.let { viewModel.deleteYoutubeFeed(it) }
+                    selectedActionYoutubeFeed = null
+                }
             )
         }
 

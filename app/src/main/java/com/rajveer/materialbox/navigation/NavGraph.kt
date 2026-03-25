@@ -14,10 +14,12 @@ import androidx.navigation.navArgument
 import com.rajveer.materialbox.ui.screens.addmaterial.AddMaterialScreen
 import com.rajveer.materialbox.ui.screens.addsubject.AddSubjectScreen
 import com.rajveer.materialbox.ui.screens.addtopic.AddTopicScreen
+import com.rajveer.materialbox.ui.screens.addyoutubefeed.AddYoutubeFeedScreen
 import com.rajveer.materialbox.ui.screens.home.HomeScreen
 import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
 import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailScreen
 import com.rajveer.materialbox.ui.screens.topicdetail.TopicDetailScreen
+import com.rajveer.materialbox.ui.screens.youtubefeeddetail.YoutubeFeedDetailScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -105,6 +107,22 @@ fun NavGraph(navController: NavHostController) {
             MaterialDetailScreen(
                 navController = navController,
                 materialId = materialId
+            )
+        }
+
+        composable(
+            route = Screen.AddYoutubeFeed.route,
+            arguments = listOf(navArgument("subjectId") { type = NavType.LongType })
+        ) { 
+            AddYoutubeFeedScreen(navController = navController)
+        }
+
+        composable(
+            route = Screen.YoutubeFeedDetail.route,
+            arguments = listOf(navArgument("feedId") { type = NavType.LongType })
+        ) { 
+            YoutubeFeedDetailScreen(
+                navController = navController
             )
         }
     }

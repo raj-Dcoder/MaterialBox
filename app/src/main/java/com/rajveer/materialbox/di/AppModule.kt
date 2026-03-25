@@ -6,9 +6,11 @@ import com.rajveer.materialbox.data.AppDatabase
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
+import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
+import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -32,7 +34,7 @@ object AppModule {
         )
         // ⚠️ NEVER use fallbackToDestructiveMigration() — it silently wipes ALL user data
         // when the DB version changes. Instead, use explicit migrations so data is preserved.
-        .addMigrations(AppDatabase.MIGRATION_1_2)
+        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
         .build()
     }
 
@@ -56,6 +58,12 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideYoutubeFeedDao(database: AppDatabase): YoutubeFeedDao {
+        return database.youtubeFeedDao()
+    }
+
+    @Provides
+    @Singleton
     fun provideSubjectRepository(subjectDao: SubjectDao): SubjectRepository {
         return SubjectRepository(subjectDao)
     }
@@ -70,5 +78,11 @@ object AppModule {
     @Singleton
     fun provideMaterialRepository(materialDao: MaterialDao): MaterialRepository {
         return MaterialRepository(materialDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideYoutubeFeedRepository(youtubeFeedDao: YoutubeFeedDao): YoutubeFeedRepository {
+        return YoutubeFeedRepository(youtubeFeedDao)
     }
 } 

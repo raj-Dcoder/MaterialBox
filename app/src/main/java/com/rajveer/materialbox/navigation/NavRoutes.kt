@@ -26,4 +26,12 @@ sealed class Screen(val route: String) {
     object MaterialDetail : Screen("material/{materialId}") {
         fun createRoute(materialId: Long) = "material/$materialId"
     }
+
+    object AddYoutubeFeed : Screen("add_youtube_feed/{subjectId}") {
+        fun createRoute(subjectId: Long) = "add_youtube_feed/$subjectId"
+    }
+
+    object YoutubeFeedDetail : Screen("youtube_feed/{feedId}") {
+        fun createRoute(feedId: Long) = "youtube_feed/$feedId"
+    }
 }

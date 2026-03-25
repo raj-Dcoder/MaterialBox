@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.entity.YoutubeFeed
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
+import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -21,6 +23,7 @@ class SubjectDetailViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
     private val topicRepository: TopicRepository,
     private val materialRepository: MaterialRepository,
+    private val youtubeFeedRepository: YoutubeFeedRepository,
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -31,6 +34,13 @@ class SubjectDetailViewModel @Inject constructor(
     val subject: StateFlow<Subject?> = _subject
 
     val topics = topicRepository.getTopicsForSubject(subjectId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val youtubeFeeds = youtubeFeedRepository.getYoutubeFeedsForSubject(subjectId)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -72,6 +82,13 @@ class SubjectDetailViewModel @Inject constructor(
             }
             topicRepository.deleteTopic(topic)
             Log.d("SubjectViewModel", "Topic deleted: ${topic.id}")
+        }
+    }
+
+    fun deleteYoutubeFeed(feed: YoutubeFeed) {
+        viewModelScope.launch {
+            youtubeFeedRepository.deleteYoutubeFeed(feed)
+            Log.d("SubjectViewModel", "Youtube feed deleted: ${feed.id}")
         }
     }
 

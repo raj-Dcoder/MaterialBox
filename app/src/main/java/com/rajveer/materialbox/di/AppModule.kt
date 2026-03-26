@@ -3,6 +3,7 @@ package com.rajveer.materialbox.di
 import android.content.Context
 import androidx.room.Room
 import com.rajveer.materialbox.data.AppDatabase
+import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
@@ -10,6 +11,7 @@ import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
+import com.rajveer.materialbox.data.repository.VideoCacheRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
 import dagger.Module
 import dagger.Provides
@@ -34,55 +36,46 @@ object AppModule {
         )
         // ⚠️ NEVER use fallbackToDestructiveMigration() — it silently wipes ALL user data
         // when the DB version changes. Instead, use explicit migrations so data is preserved.
-        .addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3)
+        .addMigrations(
+            AppDatabase.MIGRATION_1_2,
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4
+        )
         .build()
     }
 
-    @Provides
-    @Singleton
-    fun provideSubjectDao(database: AppDatabase): SubjectDao {
-        return database.subjectDao()
-    }
+    @Provides @Singleton
+    fun provideSubjectDao(database: AppDatabase): SubjectDao = database.subjectDao()
 
-    @Provides
-    @Singleton
-    fun provideTopicDao(database: AppDatabase): TopicDao {
-        return database.topicDao()
-    }
+    @Provides @Singleton
+    fun provideTopicDao(database: AppDatabase): TopicDao = database.topicDao()
 
-    @Provides
-    @Singleton
-    fun provideMaterialDao(database: AppDatabase): MaterialDao {
-        return database.materialDao()
-    }
+    @Provides @Singleton
+    fun provideMaterialDao(database: AppDatabase): MaterialDao = database.materialDao()
 
-    @Provides
-    @Singleton
-    fun provideYoutubeFeedDao(database: AppDatabase): YoutubeFeedDao {
-        return database.youtubeFeedDao()
-    }
+    @Provides @Singleton
+    fun provideYoutubeFeedDao(database: AppDatabase): YoutubeFeedDao = database.youtubeFeedDao()
 
-    @Provides
-    @Singleton
-    fun provideSubjectRepository(subjectDao: SubjectDao): SubjectRepository {
-        return SubjectRepository(subjectDao)
-    }
+    @Provides @Singleton
+    fun provideCachedVideoDao(database: AppDatabase): CachedVideoDao = database.cachedVideoDao()
 
-    @Provides
-    @Singleton
-    fun provideTopicRepository(topicDao: TopicDao): TopicRepository {
-        return TopicRepository(topicDao)
-    }
+    @Provides @Singleton
+    fun provideSubjectRepository(subjectDao: SubjectDao): SubjectRepository =
+        SubjectRepository(subjectDao)
 
-    @Provides
-    @Singleton
-    fun provideMaterialRepository(materialDao: MaterialDao): MaterialRepository {
-        return MaterialRepository(materialDao)
-    }
+    @Provides @Singleton
+    fun provideTopicRepository(topicDao: TopicDao): TopicRepository =
+        TopicRepository(topicDao)
 
-    @Provides
-    @Singleton
-    fun provideYoutubeFeedRepository(youtubeFeedDao: YoutubeFeedDao): YoutubeFeedRepository {
-        return YoutubeFeedRepository(youtubeFeedDao)
-    }
-} 
+    @Provides @Singleton
+    fun provideMaterialRepository(materialDao: MaterialDao): MaterialRepository =
+        MaterialRepository(materialDao)
+
+    @Provides @Singleton
+    fun provideYoutubeFeedRepository(youtubeFeedDao: YoutubeFeedDao): YoutubeFeedRepository =
+        YoutubeFeedRepository(youtubeFeedDao)
+
+    @Provides @Singleton
+    fun provideVideoCacheRepository(cachedVideoDao: CachedVideoDao): VideoCacheRepository =
+        VideoCacheRepository(cachedVideoDao)
+}

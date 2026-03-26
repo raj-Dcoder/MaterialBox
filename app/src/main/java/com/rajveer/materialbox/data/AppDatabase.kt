@@ -10,18 +10,20 @@ import androidx.room.migration.Migration
 import com.rajveer.materialbox.data.converter.DateConverter
 import com.rajveer.materialbox.data.converter.ListConverter
 import com.rajveer.materialbox.data.converter.MaterialTypeConverter
+import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
+import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.data.entity.YoutubeFeed
 
 @Database(
-    entities = [Subject::class, Topic::class, Material::class, YoutubeFeed::class],
-    version = 3,
+    entities = [Subject::class, Topic::class, Material::class, YoutubeFeed::class, CachedVideo::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -30,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun topicDao(): TopicDao
     abstract fun materialDao(): MaterialDao
     abstract fun youtubeFeedDao(): YoutubeFeedDao
+    abstract fun cachedVideoDao(): CachedVideoDao
 
     companion object {
         @Volatile
@@ -59,6 +62,29 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS cached_videos (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        feedId INTEGER NOT NULL,
+                        title TEXT NOT NULL,
+                        videoUrl TEXT NOT NULL,
+                        thumbnailUrl TEXT NOT NULL,
+                        publishedAt INTEGER NOT NULL,
+                        channelName TEXT NOT NULL,
+                        cachedAt INTEGER NOT NULL,
+                        FOREIGN KEY(feedId) REFERENCES youtube_feeds(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                database.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_cached_videos_feedId ON cached_videos(feedId)"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -66,7 +92,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "materialbox_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance

@@ -116,7 +116,19 @@ fun YoutubeFeedDetailScreen(
                             .padding(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        item { Spacer(Modifier.height(8.dp)) }
+                        // "Last updated X ago" header
+                        item {
+                            uiState.lastCachedAt?.let { date ->
+                                Text(
+                                    text = "Updated ${date.toRelativeTimeString()}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
 
                         items(uiState.videos) { video ->
                             YoutubeVideoCard(video = video) {

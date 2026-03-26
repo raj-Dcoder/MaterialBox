@@ -17,7 +17,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Enables edge-to-edge: app content draws behind the status bar & nav bar
         enableEdgeToEdge()
         setContent {
             MaterialBoxTheme {

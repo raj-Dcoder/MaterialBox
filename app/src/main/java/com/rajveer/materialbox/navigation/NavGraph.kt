@@ -17,6 +17,7 @@ import com.rajveer.materialbox.ui.screens.addtopic.AddTopicScreen
 import com.rajveer.materialbox.ui.screens.addyoutubefeed.AddYoutubeFeedScreen
 import com.rajveer.materialbox.ui.screens.home.HomeScreen
 import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
+import com.rajveer.materialbox.ui.screens.splash.SplashScreen
 import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailScreen
 import com.rajveer.materialbox.ui.screens.topicdetail.TopicDetailScreen
 import com.rajveer.materialbox.ui.screens.youtubefeeddetail.YoutubeFeedDetailScreen
@@ -25,7 +26,7 @@ import com.rajveer.materialbox.ui.screens.youtubefeeddetail.YoutubeFeedDetailScr
 fun NavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route,
+        startDestination = Screen.Splash.route,
         enterTransition = {
             slideInHorizontally(
                 initialOffsetX = { it },
@@ -43,6 +44,14 @@ fun NavGraph(navController: NavHostController) {
         popEnterTransition = { EnterTransition.None },
         popExitTransition = { ExitTransition.None }
     ) {
+        composable(
+            route = Screen.Splash.route,
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None }
+        ) {
+            SplashScreen(navController = navController)
+        }
+
         composable(Screen.Home.route) {
             HomeScreen(navController)
         }

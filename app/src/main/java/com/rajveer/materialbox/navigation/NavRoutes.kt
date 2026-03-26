@@ -3,6 +3,7 @@ package com.rajveer.materialbox.navigation
 import android.net.Uri
 
 sealed class Screen(val route: String) {
+    object Splash : Screen("splash")
     object Home : Screen("home")
     object AddSubject : Screen("add_subject")
     

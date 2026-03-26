@@ -6,17 +6,21 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -39,6 +43,9 @@ fun YoutubeFeedDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditSheet by remember { mutableStateOf(false) }
+
+    val pullRefreshState = rememberPullToRefreshState()
 
     Scaffold(
         topBar = {
@@ -56,9 +63,15 @@ fun YoutubeFeedDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
+                        HapticUtils.playClick(context)
+                        showEditSheet = true
+                    }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Feed")
+                    }
+                    IconButton(onClick = {
                         HapticUtils.playHeavyClick(context)
-                        showDeleteDialog = true 
+                        showDeleteDialog = true
                     }) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete Feed")
                     }
@@ -66,48 +79,66 @@ fun YoutubeFeedDetailScreen(
             )
         }
     ) { padding ->
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (uiState.videos.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                EmptyStateCard(
-                    icon = Icons.Outlined.VideoLibrary,
-                    title = "No videos found",
-                    subtitle = "The channel might not have any recent videos."
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item { Spacer(Modifier.height(8.dp)) }
 
-                items(uiState.videos) { video ->
-                    YoutubeVideoCard(video = video) {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.videoUrl))
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            android.widget.Toast.makeText(context, "Could not open video", android.widget.Toast.LENGTH_SHORT).show()
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = { viewModel.refreshFeed() },
+            state = pullRefreshState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                uiState.videos.isEmpty() -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        item {
+                            EmptyStateCard(
+                                icon = Icons.Outlined.VideoLibrary,
+                                title = "No videos found",
+                                subtitle = "Pull down to refresh, or check the channel URLs."
+                            )
                         }
                     }
                 }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item { Spacer(Modifier.height(8.dp)) }
 
-                item { Spacer(Modifier.height(16.dp)) }
+                        items(uiState.videos) { video ->
+                            YoutubeVideoCard(video = video) {
+                                try {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.videoUrl))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(
+                                        context, "Could not open video",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
+                }
             }
         }
 
+        // ── Delete dialog ──────────────────────────────────────────────────
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
@@ -125,11 +156,127 @@ fun YoutubeFeedDetailScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Cancel")
-                    }
+                    TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
                 }
             )
+        }
+
+        // ── Edit Bottom Sheet ──────────────────────────────────────────────
+        if (showEditSheet) {
+            val feed = uiState.feed
+            if (feed != null) {
+                var editedName by remember { mutableStateOf(feed.name) }
+                var editedChannels by remember {
+                    mutableStateOf(feed.channelUrls.toMutableList().ifEmpty { mutableListOf("") })
+                }
+
+                ModalBottomSheet(
+                    onDismissRequest = { showEditSheet = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 36.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item {
+                            Text(
+                                "Edit Feed",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+
+                        item {
+                            OutlinedTextField(
+                                value = editedName,
+                                onValueChange = { editedName = it },
+                                label = { Text("Feed Name") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+                        }
+
+                        item {
+                            Text(
+                                "Channel URLs",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        itemsIndexed(editedChannels) { index, url ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = url,
+                                    onValueChange = { newUrl ->
+                                        val list = editedChannels.toMutableList()
+                                        list[index] = newUrl
+                                        editedChannels = list
+                                    },
+                                    label = { Text("Channel URL") },
+                                    placeholder = { Text("https://www.youtube.com/@channel") },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    singleLine = true
+                                )
+                                if (editedChannels.size > 1) {
+                                    IconButton(onClick = {
+                                        val list = editedChannels.toMutableList()
+                                        list.removeAt(index)
+                                        editedChannels = list
+                                    }) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Remove channel",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        item {
+                            TextButton(
+                                onClick = {
+                                    val list = editedChannels.toMutableList()
+                                    list.add("")
+                                    editedChannels = list
+                                }
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Add Another Channel")
+                            }
+                        }
+
+                        item {
+                            Button(
+                                onClick = {
+                                    if (editedName.isNotBlank() && editedChannels.any { it.isNotBlank() }) {
+                                        HapticUtils.playClick(context)
+                                        viewModel.updateFeed(editedName, editedChannels)
+                                        showEditSheet = false
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = editedName.isNotBlank() && editedChannels.any { it.isNotBlank() }
+                            ) {
+                                Text("Save Changes")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -141,7 +288,9 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     ) {
         Column {
             AsyncImage(
@@ -153,7 +302,7 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
                 contentScale = ContentScale.Crop
             )
-            
+
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
                     text = video.title,
@@ -164,9 +313,9 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Spacer(modifier = Modifier.height(4.dp))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

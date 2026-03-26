@@ -33,9 +33,9 @@ object YoutubeRssFetcher {
             }
         }
         
-        // Sort by date descending
+        // Sort by date descending, cap at 20 total across all channels
         allVideos.sortByDescending { it.publishedAt }
-        allVideos
+        allVideos.take(20)
     }
 
     private fun extractChannelId(url: String): String? {

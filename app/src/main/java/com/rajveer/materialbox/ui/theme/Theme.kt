@@ -1,6 +1,7 @@
 package com.rajveer.materialbox.ui.theme
 
 import android.app.Activity
+import android.graphics.drawable.ColorDrawable
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -105,12 +106,14 @@ fun MaterialBoxTheme(
     }
 
     val view = LocalView.current
+    val bgColor = colorScheme.background
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Edge-to-edge: make the status bar blend with the app content
-            // instead of a solid primary color block
-            window.statusBarColor = Color.Transparent.toArgb()
+            // Set the decor view background to our app background so the raw
+            // Android window never bleeds through as black during scroll/animation.
+            // Note: statusBarColor is not set here — enableEdgeToEdge() in MainActivity handles it.
+            window.decorView.background = ColorDrawable(bgColor.toArgb())
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }

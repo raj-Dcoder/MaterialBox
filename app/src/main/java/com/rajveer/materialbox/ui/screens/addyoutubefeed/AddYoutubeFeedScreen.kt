@@ -98,10 +98,10 @@ fun AddYoutubeFeedScreen(
                             newList[index] = newUrl
                             channelUrls = newList
                         },
-                        label = { Text("Channel URL") },
+                        label = { Text("Channel or Playlist URL") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        placeholder = { Text("https://www.youtube.com/@channel") }
+                        placeholder = { Text("Channel or playlist link") }
                     )
                     if (channelUrls.size > 1) {
                         IconButton(onClick = {

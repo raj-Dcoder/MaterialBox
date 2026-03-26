@@ -1,6 +1,8 @@
 package com.rajveer.materialbox.ui.screens.home
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.material3.TextButton
@@ -132,25 +134,49 @@ fun HomeScreen(
                 android.widget.Toast.makeText(context, "Could not open link", android.widget.Toast.LENGTH_SHORT).show()
             }
         } else {
-            val file = File(context.filesDir, mat.pathOrUrl)
-            if (file.exists()) {
+            val isContentUri = mat.pathOrUrl.startsWith("content://") || mat.pathOrUrl.startsWith("file://")
+            if (isContentUri) {
                 try {
-                    val uri = FileProvider.getUriForFile(context, context.applicationContext.packageName + ".provider", file)
+                    val uri = android.net.Uri.parse(mat.pathOrUrl)
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                        setDataAndType(uri, context.contentResolver.getType(uri))
+                        setDataAndType(uri, context.contentResolver.getType(uri) ?: "*/*")
                         addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    android.widget.Toast.makeText(context, "No application found to open this file", android.widget.Toast.LENGTH_SHORT).show()
+                    android.widget.Toast.makeText(context, "No app found to open this file", android.widget.Toast.LENGTH_SHORT).show()
                 }
             } else {
-                android.widget.Toast.makeText(context, "File not found", android.widget.Toast.LENGTH_SHORT).show()
+                val file = File(context.filesDir, mat.pathOrUrl)
+                if (file.exists()) {
+                    try {
+                        val uri = FileProvider.getUriForFile(context, context.applicationContext.packageName + ".provider", file)
+                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, context.contentResolver.getType(uri))
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(context, "No application found to open this file", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    android.widget.Toast.makeText(context, "File not found", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
+    val topBarBgColor by animateColorAsState(
+        targetValue = if (showTopBarTitle)
+            MaterialTheme.colorScheme.background
+        else
+            Color.Transparent,
+        animationSpec = tween(durationMillis = 200),
+        label = "topBarBg"
+    )
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             // Sticky TopAppBar — shows "MaterialBox" only after scroll
             TopAppBar(
@@ -169,10 +195,7 @@ fun HomeScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (showTopBarTitle)
-                        MaterialTheme.colorScheme.background
-                    else
-                        Color.Transparent
+                    containerColor = topBarBgColor
                 ),
                 actions = {
                     Box {

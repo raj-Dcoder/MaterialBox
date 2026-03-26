@@ -17,25 +17,60 @@ object YoutubeRssFetcher {
 
     suspend fun fetchVideosFromChannels(channelUrls: List<String>): List<YoutubeVideo> = withContext(Dispatchers.IO) {
         val allVideos = mutableListOf<YoutubeVideo>()
-        
+
         channelUrls.forEach { url ->
             try {
-                val channelId = extractChannelId(url)
-                if (channelId != null) {
-                    val rssUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+                val rssUrl = buildRssUrl(url)
+                if (rssUrl != null) {
                     val videos = fetchRssFeed(rssUrl)
                     allVideos.addAll(videos)
                 } else {
-                    Log.e("YoutubeRssFetcher", "Could not extract channel ID from $url")
+                    Log.e("YoutubeRssFetcher", "Could not resolve URL: $url")
                 }
             } catch (e: Exception) {
                 Log.e("YoutubeRssFetcher", "Error fetching videos for $url", e)
             }
         }
-        
-        // Sort by date descending, cap at 20 total across all channels
+
+        // Sort by date descending, cap at 20 total across all channels/playlists
         allVideos.sortByDescending { it.publishedAt }
         allVideos.take(20)
+    }
+
+    /**
+     * Determines whether a URL points to a playlist or a channel,
+     * then returns the correct YouTube RSS feed URL.
+     */
+    private fun buildRssUrl(url: String): String? {
+        val trimmed = url.trim()
+
+        // ── Playlist detection ─────────────────────────────────────────────
+        // Matches: youtube.com/playlist?list=PLxxxxx
+        //          youtube.com/watch?v=xxx&list=PLxxxxx
+        val playlistId = extractPlaylistId(trimmed)
+        if (playlistId != null) {
+            return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+        }
+
+        // ── Channel detection ──────────────────────────────────────────────
+        val channelId = extractChannelId(trimmed)
+        if (channelId != null) {
+            return "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+        }
+
+        return null
+    }
+
+    /** Extracts playlist ID (starts with PL, FL, UU, etc.) from a URL's list= param. */
+    private fun extractPlaylistId(url: String): String? {
+        return try {
+            val uri = android.net.Uri.parse(url)
+            val listParam = uri.getQueryParameter("list")
+            // YouTube playlist IDs typically start with PL, FL, UU, RD, OL
+            if (!listParam.isNullOrBlank()) listParam else null
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun extractChannelId(url: String): String? {

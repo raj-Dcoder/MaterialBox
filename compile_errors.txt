@@ -15,21 +15,30 @@ Daemon will be stopped at the end of the build
 > Task :app:processDebugMainManifest UP-TO-DATE
 > Task :app:processDebugManifest UP-TO-DATE
 > Task :app:processDebugManifestForPackage UP-TO-DATE
-> Task :app:processDebugResources FAILED
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kaptGenerateStubsDebugKotlin UP-TO-DATE
+
+> Task :app:kaptDebugKotlin
+C:\Users\91620\MaterialBox\app\build\tmp\kapt3\stubs\debug\com\rajveer\materialbox\data\entity\Topic.java:5: warning: subjectId column references a foreign key but it is not part of an index. This may trigger full table scans whenever parent table is modified so you are highly advised to create an index that covers this column.
+public final class Topic {
+             ^
+C:\Users\91620\MaterialBox\app\build\tmp\kapt3\stubs\debug\com\rajveer\materialbox\data\entity\Material.java:5: warning: topicId column references a foreign key but it is not part of an index. This may trigger full table scans whenever parent table is modified so you are highly advised to create an index that covers this column.
+public final class Material {
+             ^
+C:\Users\91620\MaterialBox\app\build\tmp\kapt3\stubs\debug\com\rajveer\materialbox\data\entity\YoutubeFeed.java:5: warning: subjectId column references a foreign key but it is not part of an index. This may trigger full table scans whenever parent table is modified so you are highly advised to create an index that covers this column.
+public final class YoutubeFeed {
+             ^
+C:\Users\91620\MaterialBox\app\build\tmp\kapt3\stubs\debug\com\rajveer\materialbox\data\dao\WatchedVideoDao.java:12: error: Not sure how to convert a Cursor to this method's return type (kotlinx.coroutines.flow.Flow<java.util.Set<java.lang.String>>).
+    public abstract kotlinx.coroutines.flow.Flow<java.util.Set<java.lang.String>> getAllWatchedUrls();
+                                                                                  ^
+
+> Task :app:kaptDebugKotlin FAILED
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':app:processDebugResources'.
-> A failure occurred while executing com.android.build.gradle.internal.res.LinkApplicationAndroidResourcesTask$TaskAction
-   > Android resource linking failed
-     error: resource style/Theme.SplashScreen (aka com.rajveer.materialbox:style/Theme.SplashScreen) not found.
-     com.rajveer.materialbox.app-mergeDebugResources-87:/values/values.xml:4059: error: style attribute 'attr/windowSplashScreenBackground (aka com.rajveer.materialbox:attr/windowSplashScreenBackground)' not found.
-     com.rajveer.materialbox.app-mergeDebugResources-87:/values/values.xml:4060: error: style attribute 'attr/windowSplashScreenAnimatedIcon (aka com.rajveer.materialbox:attr/windowSplashScreenAnimatedIcon)' not found.
-     com.rajveer.materialbox.app-mergeDebugResources-87:/values/values.xml:4061: error: style attribute 'attr/windowSplashScreenAnimationDuration (aka com.rajveer.materialbox:attr/windowSplashScreenAnimationDuration)' not found.
-     com.rajveer.materialbox.app-mergeDebugResources-87:/values/values.xml:4062: error: style attribute 'attr/postSplashScreenTheme (aka com.rajveer.materialbox:attr/postSplashScreenTheme)' not found.
-     error: failed linking references.
-
+Execution failed for task ':app:kaptDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask$KaptExecutionWorkAction
 
 * Try:
 > Run with --stacktrace option to get the stack trace.
@@ -37,5 +46,5 @@ Execution failed for task ':app:processDebugResources'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 41s
-13 actionable tasks: 1 executed, 12 up-to-date
+BUILD FAILED in 44s
+15 actionable tasks: 1 executed, 14 up-to-date

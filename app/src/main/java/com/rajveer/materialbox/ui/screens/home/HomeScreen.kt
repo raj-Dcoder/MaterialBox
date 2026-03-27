@@ -46,12 +46,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -267,8 +269,8 @@ fun HomeScreen(
                         )
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = viewModel.getGreeting(),
+                    TypewriterText(
+                        fullText = viewModel.getGreeting(),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -591,4 +593,33 @@ fun EmptyStateCard(
             textAlign = TextAlign.Center
         )
     }
+}
+
+// ============================================================
+// TypewriterText — reveals text character by character
+// ============================================================
+@Composable
+fun TypewriterText(
+    fullText: String,
+    modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = androidx.compose.ui.text.TextStyle.Default,
+    color: Color = Color.Unspecified,
+    charDelayMs: Long = 50L
+) {
+    var displayed by remember(fullText) { mutableStateOf("") }
+
+    LaunchedEffect(fullText) {
+        displayed = ""
+        for (i in fullText.indices) {
+            delay(charDelayMs)
+            displayed = fullText.substring(0, i + 1)
+        }
+    }
+
+    Text(
+        text = displayed,
+        modifier = modifier,
+        style = style,
+        color = color
+    )
 }

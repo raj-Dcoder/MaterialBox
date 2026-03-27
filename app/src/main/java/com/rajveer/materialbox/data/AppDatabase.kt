@@ -14,16 +14,21 @@ import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
+import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.entity.WatchedVideo
 import com.rajveer.materialbox.data.entity.YoutubeFeed
 
 @Database(
-    entities = [Subject::class, Topic::class, Material::class, YoutubeFeed::class, CachedVideo::class],
-    version = 4,
+    entities = [
+        Subject::class, Topic::class, Material::class,
+        YoutubeFeed::class, CachedVideo::class, WatchedVideo::class
+    ],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -33,21 +38,21 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun materialDao(): MaterialDao
     abstract fun youtubeFeedDao(): YoutubeFeedDao
     abstract fun cachedVideoDao(): CachedVideoDao
+    abstract fun watchedVideoDao(): WatchedVideoDao
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL("ALTER TABLE materials ADD COLUMN originalFileUri TEXT")
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE materials ADD COLUMN originalFileUri TEXT")
             }
         }
 
         val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS youtube_feeds (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         subjectId INTEGER NOT NULL,
@@ -57,15 +62,13 @@ abstract class AppDatabase : RoomDatabase() {
                         updatedAt INTEGER NOT NULL,
                         FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
-                    """.trimIndent()
-                )
+                """.trimIndent())
             }
         }
 
         val MIGRATION_3_4 = object : Migration(3, 4) {
-            override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
                     CREATE TABLE IF NOT EXISTS cached_videos (
                         id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         feedId INTEGER NOT NULL,
@@ -77,11 +80,19 @@ abstract class AppDatabase : RoomDatabase() {
                         cachedAt INTEGER NOT NULL,
                         FOREIGN KEY(feedId) REFERENCES youtube_feeds(id) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
-                    """.trimIndent()
-                )
-                database.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_cached_videos_feedId ON cached_videos(feedId)"
-                )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_cached_videos_feedId ON cached_videos(feedId)")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS watched_videos (
+                        videoUrl TEXT NOT NULL PRIMARY KEY,
+                        watchedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
             }
         }
 
@@ -92,7 +103,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "materialbox_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

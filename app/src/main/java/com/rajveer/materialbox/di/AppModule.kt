@@ -7,11 +7,13 @@ import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
+import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
+import com.rajveer.materialbox.data.repository.WatchedVideoRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
 import dagger.Module
 import dagger.Provides
@@ -26,56 +28,54 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAppDatabase(
-        @ApplicationContext context: Context
-    ): AppDatabase {
+    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
             "materialbox_database"
         )
-        // ⚠️ NEVER use fallbackToDestructiveMigration() — it silently wipes ALL user data
-        // when the DB version changes. Instead, use explicit migrations so data is preserved.
         .addMigrations(
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4
+            AppDatabase.MIGRATION_3_4,
+            AppDatabase.MIGRATION_4_5
         )
         .build()
     }
 
     @Provides @Singleton
-    fun provideSubjectDao(database: AppDatabase): SubjectDao = database.subjectDao()
+    fun provideSubjectDao(db: AppDatabase): SubjectDao = db.subjectDao()
 
     @Provides @Singleton
-    fun provideTopicDao(database: AppDatabase): TopicDao = database.topicDao()
+    fun provideTopicDao(db: AppDatabase): TopicDao = db.topicDao()
 
     @Provides @Singleton
-    fun provideMaterialDao(database: AppDatabase): MaterialDao = database.materialDao()
+    fun provideMaterialDao(db: AppDatabase): MaterialDao = db.materialDao()
 
     @Provides @Singleton
-    fun provideYoutubeFeedDao(database: AppDatabase): YoutubeFeedDao = database.youtubeFeedDao()
+    fun provideYoutubeFeedDao(db: AppDatabase): YoutubeFeedDao = db.youtubeFeedDao()
 
     @Provides @Singleton
-    fun provideCachedVideoDao(database: AppDatabase): CachedVideoDao = database.cachedVideoDao()
+    fun provideCachedVideoDao(db: AppDatabase): CachedVideoDao = db.cachedVideoDao()
 
     @Provides @Singleton
-    fun provideSubjectRepository(subjectDao: SubjectDao): SubjectRepository =
-        SubjectRepository(subjectDao)
+    fun provideWatchedVideoDao(db: AppDatabase): WatchedVideoDao = db.watchedVideoDao()
 
     @Provides @Singleton
-    fun provideTopicRepository(topicDao: TopicDao): TopicRepository =
-        TopicRepository(topicDao)
+    fun provideSubjectRepository(dao: SubjectDao): SubjectRepository = SubjectRepository(dao)
 
     @Provides @Singleton
-    fun provideMaterialRepository(materialDao: MaterialDao): MaterialRepository =
-        MaterialRepository(materialDao)
+    fun provideTopicRepository(dao: TopicDao): TopicRepository = TopicRepository(dao)
 
     @Provides @Singleton
-    fun provideYoutubeFeedRepository(youtubeFeedDao: YoutubeFeedDao): YoutubeFeedRepository =
-        YoutubeFeedRepository(youtubeFeedDao)
+    fun provideMaterialRepository(dao: MaterialDao): MaterialRepository = MaterialRepository(dao)
 
     @Provides @Singleton
-    fun provideVideoCacheRepository(cachedVideoDao: CachedVideoDao): VideoCacheRepository =
-        VideoCacheRepository(cachedVideoDao)
+    fun provideYoutubeFeedRepository(dao: YoutubeFeedDao): YoutubeFeedRepository = YoutubeFeedRepository(dao)
+
+    @Provides @Singleton
+    fun provideVideoCacheRepository(dao: CachedVideoDao): VideoCacheRepository = VideoCacheRepository(dao)
+
+    @Provides @Singleton
+    fun provideWatchedVideoRepository(dao: WatchedVideoDao): WatchedVideoRepository = WatchedVideoRepository(dao)
 }

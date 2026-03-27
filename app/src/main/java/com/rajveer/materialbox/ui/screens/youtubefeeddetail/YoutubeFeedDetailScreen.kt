@@ -2,6 +2,7 @@ package com.rajveer.materialbox.ui.screens.youtubefeeddetail
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -133,6 +134,7 @@ fun YoutubeFeedDetailScreen(
                         items(uiState.videos) { video ->
                             YoutubeVideoCard(video = video) {
                                 try {
+                                    viewModel.markWatched(video.videoUrl)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(video.videoUrl))
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
@@ -301,19 +303,35 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                alpha = if (video.isWatched) 0.35f else 0.5f
+            )
         )
     ) {
         Column {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                contentScale = ContentScale.Crop
-            )
+            // ── Thumbnail with watched progress bar overlay (Option D) ──
+            Box {
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                // Red "watched" bar at the bottom of the thumbnail
+                if (video.isWatched) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .align(Alignment.BottomStart)
+                            .clip(RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp))
+                            .background(MaterialTheme.colorScheme.error)
+                    )
+                }
+            }
 
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
@@ -323,7 +341,11 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
                         lineHeight = 20.sp
                     ),
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (video.isWatched)
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        MaterialTheme.colorScheme.onSurface
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -342,6 +364,24 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
                         text = video.publishedAt.toRelativeTimeString(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // ── "Watched" chip (Option C) ──
+                if (video.isWatched) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SuggestionChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                text = "Watched",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            labelColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
                     )
                 }
             }

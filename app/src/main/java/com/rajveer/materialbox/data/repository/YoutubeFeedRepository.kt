@@ -13,6 +13,9 @@ class YoutubeFeedRepository @Inject constructor(
     fun getYoutubeFeedsForSubject(subjectId: Long): Flow<List<YoutubeFeed>> =
         youtubeFeedDao.getYoutubeFeedsForSubject(subjectId)
 
+    fun getAllFeeds(): Flow<List<YoutubeFeed>> =
+        youtubeFeedDao.getAllFeeds()
+
     fun getYoutubeFeedById(id: Long): Flow<YoutubeFeed?> =
         youtubeFeedDao.getYoutubeFeedById(id)
 

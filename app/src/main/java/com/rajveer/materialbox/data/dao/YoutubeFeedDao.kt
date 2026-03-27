@@ -20,4 +20,7 @@ interface YoutubeFeedDao {
 
     @Query("SELECT * FROM youtube_feeds WHERE subjectId = :subjectId ORDER BY createdAt DESC")
     fun getYoutubeFeedsForSubject(subjectId: Long): Flow<List<YoutubeFeed>>
+
+    @Query("SELECT * FROM youtube_feeds ORDER BY createdAt DESC")
+    fun getAllFeeds(): Flow<List<YoutubeFeed>>
 }

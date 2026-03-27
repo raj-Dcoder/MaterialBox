@@ -7,6 +7,7 @@ import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
 import com.rajveer.materialbox.data.repository.WatchedVideoRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
+import com.rajveer.materialbox.util.FeedSyncManager
 import com.rajveer.materialbox.util.YoutubeRssFetcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -37,6 +38,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     private val youtubeFeedRepository: YoutubeFeedRepository,
     private val videoCacheRepository: VideoCacheRepository,
     private val watchedVideoRepository: WatchedVideoRepository,
+    private val feedSyncManager: FeedSyncManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -56,10 +58,9 @@ class YoutubeFeedDetailViewModel @Inject constructor(
                 .collect { feed ->
                     _uiState.update { it.copy(feed = feed) }
                     if (feed != null) {
-                        val cached = videoCacheRepository.getLastCachedAt(feedId)
-                        if (cached == null) {
-                            fetchVideos(isManualRefresh = false)
-                        }
+                        // Trigger a background sync whenever the screen is opened.
+                        // FeedSyncManager deduplicates and skips if already fresh/running.
+                        feedSyncManager.syncFeed(feedId)
                     }
                 }
         }

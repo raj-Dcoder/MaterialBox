@@ -15,6 +15,7 @@ import com.rajveer.materialbox.data.repository.TopicRepository
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
 import com.rajveer.materialbox.data.repository.WatchedVideoRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
+import com.rajveer.materialbox.util.FeedSyncManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -78,4 +79,10 @@ object AppModule {
 
     @Provides @Singleton
     fun provideWatchedVideoRepository(dao: WatchedVideoDao): WatchedVideoRepository = WatchedVideoRepository(dao)
+
+    @Provides @Singleton
+    fun provideFeedSyncManager(
+        feedRepository: YoutubeFeedRepository,
+        cacheRepository: VideoCacheRepository
+    ): FeedSyncManager = FeedSyncManager(feedRepository, cacheRepository)
 }

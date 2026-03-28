@@ -106,6 +106,25 @@ fun SubjectDetailScreen(
                         }
                     }
 
+                    // Add Roadmap
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn(tween(150)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(150)),
+                        exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(150))
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                HapticUtils.playClick(context)
+                                navController.navigate(Screen.Roadmap.createRoute(subjectId))
+                                fabExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Study Roadmap")
+                        }
+                    }
+
                     // Add Topic
                     AnimatedVisibility(
                         visible = fabExpanded,
@@ -160,6 +179,33 @@ fun SubjectDetailScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                item {
+                    Card(
+                        onClick = {
+                            HapticUtils.playClick(context)
+                            navController.navigate(Screen.Roadmap.createRoute(subjectId))
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.FormatListBulleted, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                "Study Roadmap",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                }
+
                 item {
                     Text(
                         text = "Topics",

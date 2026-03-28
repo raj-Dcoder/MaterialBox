@@ -5,8 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.RoadmapRepository
+import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
+import com.rajveer.materialbox.data.entity.SubjectStreak
+import com.rajveer.materialbox.data.dao.RoadmapProgress
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
@@ -26,6 +30,8 @@ class HomeViewModel @Inject constructor(
     private val subjectRepository: SubjectRepository,
     private val materialRepository: MaterialRepository,
     private val topicRepository: TopicRepository,
+    private val streakRepository: StreakRepository,
+    private val roadmapRepository: RoadmapRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -151,6 +157,12 @@ class HomeViewModel @Inject constructor(
 
     fun getTopicCountForSubject(subjectId: Long): Flow<Int> =
         topicRepository.getTopicCountForSubject(subjectId)
+
+    fun getStreakForSubject(subjectId: Long): Flow<SubjectStreak?> =
+        streakRepository.getStreak(subjectId)
+
+    fun getRoadmapProgressForSubject(subjectId: Long): Flow<RoadmapProgress> =
+        roadmapRepository.getProgress(subjectId)
 
     enum class ViewMode {
         RECENTLY_ADDED,

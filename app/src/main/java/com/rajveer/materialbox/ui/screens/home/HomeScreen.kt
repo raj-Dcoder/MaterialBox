@@ -366,6 +366,8 @@ fun HomeScreen(
             } else {
                 items(subjects) { subject ->
                     val subjectTopicCount by viewModel.getTopicCountForSubject(subject.id).collectAsState(initial = 0)
+                    val subjectStreak by viewModel.getStreakForSubject(subject.id).collectAsState(initial = null)
+                    val roadmapProgress by viewModel.getRoadmapProgressForSubject(subject.id).collectAsState(initial = null)
                     
                     SubjectCard(
                         subject = subject,
@@ -376,6 +378,8 @@ fun HomeScreen(
                             selectedActionSubject = subject
                         },
                         topicCount = subjectTopicCount,
+                        streak = subjectStreak,
+                        roadmapProgress = roadmapProgress,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }

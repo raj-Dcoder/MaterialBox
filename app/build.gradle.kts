@@ -71,6 +71,7 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.2.0")
 
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("org.burnoutcrew.composereorderable:reorderable:0.9.6")
 
 
     // Navigation

@@ -10,6 +10,7 @@ import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -34,6 +35,7 @@ data class TopicDetailUiState(
 class TopicDetailViewModel @Inject constructor(
     private val topicRepository: TopicRepository,
     private val materialRepository: MaterialRepository,
+    private val streakRepository: StreakRepository,
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -158,6 +160,9 @@ class TopicDetailViewModel @Inject constructor(
     fun incrementViewCount(materialId: Long) {
         viewModelScope.launch {
             materialRepository.incrementViewCount(materialId)
+            uiState.value.topic?.subjectId?.let {
+                streakRepository.recordActivity(it)
+            }
         }
     }
 }

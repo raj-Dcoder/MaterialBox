@@ -7,6 +7,7 @@ import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
 import com.rajveer.materialbox.data.repository.WatchedVideoRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
+import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.util.FeedSyncManager
 import com.rajveer.materialbox.util.YoutubeRssFetcher
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,6 +40,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     private val videoCacheRepository: VideoCacheRepository,
     private val watchedVideoRepository: WatchedVideoRepository,
     private val feedSyncManager: FeedSyncManager,
+    private val streakRepository: StreakRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -94,6 +96,9 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     fun markWatched(videoUrl: String) {
         viewModelScope.launch {
             watchedVideoRepository.markWatched(videoUrl)
+            _uiState.value.feed?.subjectId?.let {
+                streakRepository.recordActivity(it)
+            }
         }
     }
 

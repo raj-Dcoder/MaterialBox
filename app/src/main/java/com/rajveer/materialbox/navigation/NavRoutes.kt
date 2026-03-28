@@ -10,6 +10,10 @@ sealed class Screen(val route: String) {
     object SubjectDetail : Screen("subject/{subjectId}") {
         fun createRoute(subjectId: Long) = "subject/$subjectId"
     }
+
+    object Roadmap : Screen("roadmap/{subjectId}") {
+        fun createRoute(subjectId: Long) = "roadmap/$subjectId"
+    }
     
     object AddTopic : Screen("add_topic/{subjectId}") {
         fun createRoute(subjectId: Long) = "add_topic/$subjectId"

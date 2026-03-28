@@ -12,9 +12,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.util.toRelativeTimeString
 import androidx.compose.ui.platform.LocalContext
+import com.rajveer.materialbox.data.entity.SubjectStreak
+import com.rajveer.materialbox.data.dao.RoadmapProgress
 
 // ============================================================
 // A list of subtle accent colors that cycle based on position.
@@ -37,6 +42,8 @@ fun SubjectCard(
     onClick: () -> Unit,
     onLongPress: () -> Unit,
     topicCount: Int = 0,
+    streak: SubjectStreak? = null,
+    roadmapProgress: RoadmapProgress? = null,
     modifier: Modifier = Modifier
 ) {
     // Pick an accent color based on the subject's ID (consistent across sessions)
@@ -102,6 +109,52 @@ fun SubjectCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                
+                val showStreak = streak != null && streak.currentStreak > 0
+                val showProgress = roadmapProgress != null && roadmapProgress.total > 0
+                
+                if (showStreak || showProgress) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (showStreak) {
+                            Text(
+                                text = "🔥 ${streak!!.currentStreak} days",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                color = accent
+                            )
+                        }
+                        
+                        if (showStreak && showProgress) {
+                            Spacer(modifier = Modifier.width(12.dp))
+                        }
+                        
+                        if (showProgress) {
+                            val percent = if (roadmapProgress!!.total > 0) 
+                                (roadmapProgress.completed.toFloat() / roadmapProgress.total) 
+                            else 0f
+                            
+                            LinearProgressIndicator(
+                                progress = { percent },
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .widthIn(max = 80.dp)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = accent,
+                                trackColor = accent.copy(alpha = 0.2f),
+                                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "${(percent * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
             }
 
             // Chevron — visual hint that this is tappable

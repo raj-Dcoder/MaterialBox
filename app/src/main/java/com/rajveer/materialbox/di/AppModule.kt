@@ -5,11 +5,15 @@ import androidx.room.Room
 import com.rajveer.materialbox.data.AppDatabase
 import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
+import com.rajveer.materialbox.data.dao.RoadmapDao
 import com.rajveer.materialbox.data.dao.SubjectDao
+import com.rajveer.materialbox.data.dao.SubjectStreakDao
 import com.rajveer.materialbox.data.dao.TopicDao
 import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.RoadmapRepository
+import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
@@ -39,7 +43,9 @@ object AppModule {
             AppDatabase.MIGRATION_1_2,
             AppDatabase.MIGRATION_2_3,
             AppDatabase.MIGRATION_3_4,
-            AppDatabase.MIGRATION_4_5
+            AppDatabase.MIGRATION_4_5,
+            AppDatabase.MIGRATION_5_6,
+            AppDatabase.MIGRATION_6_7
         )
         .build()
     }
@@ -63,6 +69,12 @@ object AppModule {
     fun provideWatchedVideoDao(db: AppDatabase): WatchedVideoDao = db.watchedVideoDao()
 
     @Provides @Singleton
+    fun provideRoadmapDao(db: AppDatabase): RoadmapDao = db.roadmapDao()
+
+    @Provides @Singleton
+    fun provideSubjectStreakDao(db: AppDatabase): SubjectStreakDao = db.subjectStreakDao()
+
+    @Provides @Singleton
     fun provideSubjectRepository(dao: SubjectDao): SubjectRepository = SubjectRepository(dao)
 
     @Provides @Singleton
@@ -79,6 +91,12 @@ object AppModule {
 
     @Provides @Singleton
     fun provideWatchedVideoRepository(dao: WatchedVideoDao): WatchedVideoRepository = WatchedVideoRepository(dao)
+
+    @Provides @Singleton
+    fun provideRoadmapRepository(dao: RoadmapDao): RoadmapRepository = RoadmapRepository(dao)
+
+    @Provides @Singleton
+    fun provideStreakRepository(dao: SubjectStreakDao): StreakRepository = StreakRepository(dao)
 
     @Provides @Singleton
     fun provideFeedSyncManager(

@@ -16,6 +16,10 @@ import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
 import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
+import com.rajveer.materialbox.data.dao.RoadmapDao
+import com.rajveer.materialbox.data.dao.SubjectStreakDao
+import com.rajveer.materialbox.data.entity.RoadmapItem
+import com.rajveer.materialbox.data.entity.SubjectStreak
 import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
@@ -26,9 +30,10 @@ import com.rajveer.materialbox.data.entity.YoutubeFeed
 @Database(
     entities = [
         Subject::class, Topic::class, Material::class,
-        YoutubeFeed::class, CachedVideo::class, WatchedVideo::class
+        YoutubeFeed::class, CachedVideo::class, WatchedVideo::class,
+        RoadmapItem::class, SubjectStreak::class
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -39,6 +44,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun youtubeFeedDao(): YoutubeFeedDao
     abstract fun cachedVideoDao(): CachedVideoDao
     abstract fun watchedVideoDao(): WatchedVideoDao
+    abstract fun roadmapDao(): RoadmapDao
+    abstract fun subjectStreakDao(): SubjectStreakDao
 
     companion object {
         @Volatile
@@ -96,6 +103,66 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS roadmap_items (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        subjectId INTEGER NOT NULL,
+                        text TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_roadmap_items_subjectId ON roadmap_items(subjectId)")
+
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS subject_streaks (
+                        subjectId INTEGER NOT NULL PRIMARY KEY,
+                        currentStreak INTEGER NOT NULL,
+                        longestStreak INTEGER NOT NULL,
+                        lastActiveDate TEXT NOT NULL,
+                        FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // To add a foreign key, we have to recreate the table in SQLite
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS roadmap_items_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        subjectId INTEGER NOT NULL,
+                        parentId INTEGER,
+                        text TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(parentId) REFERENCES roadmap_items(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                
+                // Copy data
+                db.execSQL("""
+                    INSERT INTO roadmap_items_new (id, subjectId, text, isCompleted, position, createdAt)
+                    SELECT id, subjectId, text, isCompleted, position, createdAt FROM roadmap_items
+                """.trimIndent())
+                
+                // Drop old table and rename new
+                db.execSQL("DROP TABLE roadmap_items")
+                db.execSQL("ALTER TABLE roadmap_items_new RENAME TO roadmap_items")
+                
+                // Recreate indices
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_roadmap_items_subjectId ON roadmap_items(subjectId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_roadmap_items_parentId ON roadmap_items(parentId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -103,7 +170,10 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "materialbox_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                    )
                     .build()
                 INSTANCE = instance
                 instance

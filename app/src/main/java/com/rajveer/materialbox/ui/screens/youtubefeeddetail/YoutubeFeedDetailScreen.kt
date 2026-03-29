@@ -366,24 +366,6 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-
-                // ── "Watched" chip (Option C) ──
-                if (video.isWatched) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    SuggestionChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                text = "Watched",
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        },
-                        colors = SuggestionChipDefaults.suggestionChipColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            labelColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    )
-                }
             }
         }
     }

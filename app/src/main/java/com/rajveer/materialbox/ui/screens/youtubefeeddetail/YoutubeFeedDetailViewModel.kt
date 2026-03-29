@@ -95,6 +95,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     /** Called when user taps a video — marks it watched AND opens YouTube. */
     fun markWatched(videoUrl: String) {
         viewModelScope.launch {
+            kotlinx.coroutines.delay(2000)
             watchedVideoRepository.markWatched(videoUrl)
             _uiState.value.feed?.subjectId?.let {
                 streakRepository.recordActivity(it)

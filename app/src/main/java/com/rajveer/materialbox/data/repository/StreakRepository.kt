@@ -3,6 +3,7 @@ package com.rajveer.materialbox.data.repository
 import com.rajveer.materialbox.data.dao.SubjectStreakDao
 import com.rajveer.materialbox.data.entity.SubjectStreak
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -15,7 +16,16 @@ class StreakRepository @Inject constructor(
     private val streakDao: SubjectStreakDao
 ) {
     fun getStreak(subjectId: Long): Flow<SubjectStreak?> =
-        streakDao.getStreak(subjectId)
+        streakDao.getStreak(subjectId).map { streak ->
+            if (streak == null) return@map null
+            val today = getTodayString()
+            val yesterday = getYesterdayString()
+            if (streak.lastActiveDate != today && streak.lastActiveDate != yesterday) {
+                streak.copy(currentStreak = 0)
+            } else {
+                streak
+            }
+        }
 
     /**
      * Records activity for a subject. 

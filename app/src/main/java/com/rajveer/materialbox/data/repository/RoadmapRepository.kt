@@ -14,6 +14,9 @@ class RoadmapRepository @Inject constructor(
     fun getItemsForSubject(subjectId: Long): Flow<List<RoadmapItem>> =
         roadmapDao.getItemsForSubject(subjectId)
 
+    fun getItemCountForSubject(subjectId: Long): Flow<Int> =
+        roadmapDao.getItemCountForSubject(subjectId)
+
     fun getProgress(subjectId: Long): Flow<RoadmapProgress> =
         roadmapDao.getProgress(subjectId)
 

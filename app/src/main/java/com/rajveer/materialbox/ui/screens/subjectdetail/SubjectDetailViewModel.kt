@@ -8,6 +8,7 @@ import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
 import com.rajveer.materialbox.data.entity.YoutubeFeed
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.RoadmapRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import com.rajveer.materialbox.data.repository.YoutubeFeedRepository
@@ -24,6 +25,7 @@ class SubjectDetailViewModel @Inject constructor(
     private val topicRepository: TopicRepository,
     private val materialRepository: MaterialRepository,
     private val youtubeFeedRepository: YoutubeFeedRepository,
+    private val roadmapRepository: RoadmapRepository,
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -94,4 +96,7 @@ class SubjectDetailViewModel @Inject constructor(
 
     fun getMaterialCountForTopic(topicId: Long): Flow<Int> =
         materialRepository.getMaterialCountForTopic(topicId)
+
+    fun getRoadmapItemCount(): Flow<Int> =
+        roadmapRepository.getItemCountForSubject(subjectId)
 } 

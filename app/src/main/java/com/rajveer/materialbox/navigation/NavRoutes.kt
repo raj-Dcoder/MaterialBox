@@ -22,6 +22,10 @@ sealed class Screen(val route: String) {
     object TopicDetail : Screen("topic/{topicId}") {
         fun createRoute(topicId: Long) = "topic/$topicId"
     }
+
+    object TopicChecklist : Screen("topic_checklist/{topicId}") {
+        fun createRoute(topicId: Long) = "topic_checklist/$topicId"
+    }
     
     object AddMaterial : Screen("add_material/{topicId}?materialType={materialType}&filePath={filePath}") {
         fun createRoute(topicId: Long) = "add_material/$topicId"

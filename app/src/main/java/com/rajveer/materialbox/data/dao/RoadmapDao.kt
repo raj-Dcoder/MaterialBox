@@ -14,6 +14,9 @@ interface RoadmapDao {
     @Query("SELECT * FROM roadmap_items WHERE subjectId = :subjectId ORDER BY position ASC, createdAt ASC")
     fun getItemsForSubject(subjectId: Long): Flow<List<RoadmapItem>>
 
+    @Query("SELECT COUNT(*) FROM roadmap_items WHERE subjectId = :subjectId")
+    fun getItemCountForSubject(subjectId: Long): Flow<Int>
+
     @Query("SELECT " +
             "SUM(CASE WHEN isCompleted = 1 THEN 1 ELSE 0 END) as completed, " +
             "COUNT(*) as total " +

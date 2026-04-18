@@ -20,6 +20,7 @@ import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
 import com.rajveer.materialbox.ui.screens.roadmap.RoadmapScreen
 import com.rajveer.materialbox.ui.screens.splash.SplashScreen
 import com.rajveer.materialbox.ui.screens.subjectdetail.SubjectDetailScreen
+import com.rajveer.materialbox.ui.screens.topicchecklist.TopicChecklistScreen
 import com.rajveer.materialbox.ui.screens.topicdetail.TopicDetailScreen
 import com.rajveer.materialbox.ui.screens.youtubefeeddetail.YoutubeFeedDetailScreen
 
@@ -78,8 +79,7 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val subjectId = backStackEntry.arguments?.getLong("subjectId") ?: return@composable
             RoadmapScreen(
-                navController = navController,
-                subjectId = subjectId
+                navController = navController
             )
         }
 
@@ -102,6 +102,16 @@ fun NavGraph(navController: NavHostController) {
             TopicDetailScreen(
                 navController = navController,
                 topicId = topicId
+            )
+        }
+
+        composable(
+            route = Screen.TopicChecklist.route,
+            arguments = listOf(navArgument("topicId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val topicId = backStackEntry.arguments?.getLong("topicId") ?: return@composable
+            TopicChecklistScreen(
+                navController = navController
             )
         }
 

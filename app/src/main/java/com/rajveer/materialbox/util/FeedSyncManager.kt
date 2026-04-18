@@ -86,9 +86,28 @@ class FeedSyncManager @Inject constructor(
                     Log.w(TAG, "syncFeed: no feed found for id=$feedId")
                     return@launch
                 }
-                syncFeedInternal(feedId, feed.channelUrls, "onDemand")
+                syncFeedInternal(feedId, feed.channelUrls, "onDemand", forceFresh = false)
             } catch (e: Exception) {
                 Log.e(TAG, "syncFeed($feedId) outer error", e)
+            }
+        }
+    }
+
+    /**
+     * Force-syncs a single feed, bypassing the staleness check.
+     * Used for manual pull-to-refresh so the user always gets fresh data.
+     */
+    fun forceSync(feedId: Long) {
+        scope.launch {
+            try {
+                val feed = feedRepository.getYoutubeFeedById(feedId).first()
+                if (feed == null) {
+                    Log.w(TAG, "forceSync: no feed found for id=$feedId")
+                    return@launch
+                }
+                syncFeedInternal(feedId, feed.channelUrls, "forceRefresh", forceFresh = true)
+            } catch (e: Exception) {
+                Log.e(TAG, "forceSync($feedId) outer error", e)
             }
         }
     }
@@ -102,7 +121,8 @@ class FeedSyncManager @Inject constructor(
     private suspend fun syncFeedInternal(
         feedId: Long,
         channelUrls: List<String>,
-        source: String
+        source: String,
+        forceFresh: Boolean = false
     ) {
         if (channelUrls.isEmpty()) {
             Log.d(TAG, "[$source] Feed $feedId has no channels, skipping.")
@@ -117,8 +137,8 @@ class FeedSyncManager @Inject constructor(
         }
 
         try {
-            // Skip if data is still fresh
-            if (isFresh(feedId)) {
+            // Skip if data is still fresh (unless force-refreshing)
+            if (!forceFresh && isFresh(feedId)) {
                 Log.d(TAG, "[$source] Feed $feedId is fresh, skipping.")
                 return
             }
@@ -144,8 +164,8 @@ class FeedSyncManager @Inject constructor(
                     cachedAt = now
                 )
             }
-            cacheRepository.replaceCache(feedId, cachedEntities)
-            Log.d(TAG, "[$source] Feed $feedId synced — ${videos.size} videos cached.")
+            cacheRepository.mergeCache(feedId, cachedEntities)
+            Log.d(TAG, "[$source] Feed $feedId synced — ${videos.size} videos merged into cache.")
         } catch (e: Exception) {
             // Per-feed error: log and move on; do NOT rethrow so other feeds are unaffected
             Log.e(TAG, "[$source] Feed $feedId sync error", e)

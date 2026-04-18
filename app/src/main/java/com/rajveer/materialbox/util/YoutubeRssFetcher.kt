@@ -10,63 +10,100 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 
 object YoutubeRssFetcher {
 
-    private val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US)
+    private const val TAG = "YoutubeRssFetcher"
 
+    private const val USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+
+    /** Max RSS retry attempts for transient HTTP failures */
+    private const val MAX_RSS_RETRIES = 3
+    private const val INITIAL_RETRY_DELAY_MS = 1000L
+
+    /**
+     * Fetches videos from ALL given channel/playlist URLs.
+     *
+     * Every channel's full RSS output (~15 videos) is kept — no per-channel or
+     * global caps — so the caller gets the complete picture and can decide how
+     * many to display or cache.
+     */
     suspend fun fetchVideosFromChannels(channelUrls: List<String>): List<YoutubeVideo> = withContext(Dispatchers.IO) {
         val allVideos = mutableListOf<YoutubeVideo>()
 
-        channelUrls.forEach { url ->
-            try {
-                val rssUrl = buildRssUrl(url)
-                if (rssUrl != null) {
-                    val videos = fetchRssFeed(rssUrl)
-                    allVideos.addAll(videos)
-                } else {
-                    Log.e("YoutubeRssFetcher", "Could not resolve URL: $url")
+        // Process in chunks of 5 to avoid rate limiting and connection pool exhaustion
+        channelUrls.chunked(5).forEach { chunk ->
+            val deferredVideos = chunk.map { url ->
+                async {
+                    try {
+                        val rssUrl = buildRssUrl(url)
+                        if (rssUrl != null) {
+                            fetchRssFeedWithRetry(rssUrl, url)
+                        } else {
+                            Log.w(TAG, "Skipping URL, could not resolve RSS: $url")
+                            emptyList()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error preparing feed for $url", e)
+                        emptyList()
+                    }
                 }
-            } catch (e: Exception) {
-                Log.e("YoutubeRssFetcher", "Error fetching videos for $url", e)
             }
+            allVideos.addAll(deferredVideos.awaitAll().flatten())
         }
 
-        // Sort by date descending, cap at 20 total across all channels/playlists
-        allVideos.sortByDescending { it.publishedAt }
-        allVideos.take(20)
+        allVideos
+            .distinctBy { it.videoUrl }
+            .sortedByDescending { it.publishedAt }
     }
 
-    /**
-     * Determines whether a URL points to a playlist or a channel,
-     * then returns the correct YouTube RSS feed URL.
-     */
     private fun buildRssUrl(url: String): String? {
         val trimmed = url.trim()
+        if (trimmed.isEmpty()) return null
 
-        // ── Playlist detection ─────────────────────────────────────────────
-        // Matches: youtube.com/playlist?list=PLxxxxx
-        //          youtube.com/watch?v=xxx&list=PLxxxxx
-        val playlistId = extractPlaylistId(trimmed)
-        if (playlistId != null) {
-            return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+        // 1. Already a direct RSS feed URL
+        if (trimmed.contains("feeds/videos.xml")) return trimmed
+
+        // 2. Raw channel ID (e.g. "UCxxxxxx")
+        if (trimmed.startsWith("UC") && !trimmed.contains("/")) {
+            return "https://www.youtube.com/feeds/videos.xml?channel_id=$trimmed"
         }
 
-        // ── Channel detection ──────────────────────────────────────────────
+        // 3. @handle shorthand (e.g. "@mkbhd")
+        if (trimmed.startsWith("@")) {
+            return resolvePageToRssUrl("https://www.youtube.com/$trimmed")
+        }
+
+        // 4. /channel/UCxxx path — check BEFORE playlist so that
+        //    "/channel/UCxxx?list=WL" doesn't incorrectly match as a playlist
         val channelId = extractChannelId(trimmed)
         if (channelId != null) {
             return "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
         }
 
+        // 5. Playlist URL (e.g. /playlist?list=PLxxx)
+        val playlistId = extractPlaylistId(trimmed)
+        if (playlistId != null) {
+            return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+        }
+
+        // 6. Any other YouTube URL — resolve by fetching the page HTML
+        if (trimmed.contains("youtube.com/") || trimmed.contains("youtu.be/")) {
+            return resolvePageToRssUrl(trimmed)
+        }
+
         return null
     }
 
-    /** Extracts playlist ID (starts with PL, FL, UU, etc.) from a URL's list= param. */
     private fun extractPlaylistId(url: String): String? {
         return try {
             val uri = android.net.Uri.parse(url)
             val listParam = uri.getQueryParameter("list")
-            // YouTube playlist IDs typically start with PL, FL, UU, RD, OL
             if (!listParam.isNullOrBlank()) listParam else null
         } catch (e: Exception) {
             null
@@ -77,44 +114,112 @@ object YoutubeRssFetcher {
         val trimmed = url.trim().removeSuffix("/")
         return when {
             trimmed.contains("/channel/") -> trimmed.substringAfter("/channel/").substringBefore("?").substringBefore("/")
-            trimmed.contains("/@") || trimmed.startsWith("@") -> resolveHandleToId(trimmed)
             else -> null
+        }?.takeIf { it.startsWith("UC") }
+    }
+
+    private fun resolvePageToRssUrl(url: String): String? {
+        // Try up to 2 times — YouTube can occasionally return incomplete pages
+        repeat(2) { attempt ->
+            val content = fetchPageContent(url)
+            if (content != null) {
+                extractChannelIdFromHtml(content)?.let { channelId ->
+                    return "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+                }
+                extractPlaylistIdFromHtml(content)?.let { playlistId ->
+                    return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+                }
+                Log.w(TAG, "Attempt ${attempt + 1}: No RSS ID found in page for $url")
+            } else {
+                Log.w(TAG, "Attempt ${attempt + 1}: Failed to fetch page for $url")
+            }
+            if (attempt == 0) Thread.sleep(1000) // brief pause before retry
+        }
+        Log.e(TAG, "No RSS-compatible channel or playlist ID found for $url after retries")
+        return null
+    }
+
+    private fun fetchPageContent(url: String): String? {
+        val fullUrl = if (!url.startsWith("http")) "https://$url" else url
+        return try {
+            val connection = URL(fullUrl).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = true
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            connection.useCaches = false
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                Log.w(TAG, "Page fetch for $fullUrl returned HTTP $responseCode")
+                return null
+            }
+            connection.inputStream.bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving page $fullUrl", e)
+            null
         }
     }
 
-    private fun resolveHandleToId(url: String): String? {
-        val fullUrl = if (!url.startsWith("http")) "https://www.youtube.com/$url" else url
-        return try {
-            val connection = URL(fullUrl).openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-            
-            connection.inputStream.bufferedReader().use { reader ->
-                val content = reader.readText()
-                // Regex 1: meta identifier
-                val regex1 = "<meta itemprop=\"identifier\" content=\"(UC[a-zA-Z0-9_-]+)\">".toRegex()
-                val match1 = regex1.find(content)
-                if (match1 != null) return match1.groupValues[1]
-                
-                // Regex 2: channelId in JSON
-                val regex2 = "\"channelId\":\"(UC[a-zA-Z0-9_-]+)\"".toRegex()
-                val match2 = regex2.find(content)
-                if (match2 != null) return match2.groupValues[1]
-                
-                // Regex 3: canonical URL
-                val regex3 = "https://www.youtube.com/channel/(UC[a-zA-Z0-9_-]+)".toRegex()
-                val match3 = regex3.find(content)
-                if (match3 != null) return match3.groupValues[1]
-                
-                Log.e("YoutubeRssFetcher", "No channel ID found in content for $fullUrl")
-                null
+    private fun extractChannelIdFromHtml(content: String): String? {
+        val patterns = listOf(
+            "<meta itemprop=\"identifier\" content=\"(UC[a-zA-Z0-9_-]+)\">".toRegex(),
+            "\"channelId\":\"(UC[a-zA-Z0-9_-]+)\"".toRegex(),
+            "https://www\\.youtube\\.com/channel/(UC[a-zA-Z0-9_-]+)".toRegex(),
+            "channel/(UC[a-zA-Z0-9_-]+)".toRegex()
+        )
+
+        return patterns.asSequence()
+            .mapNotNull { it.find(content)?.groupValues?.getOrNull(1) }
+            .firstOrNull()
+    }
+
+    private fun extractPlaylistIdFromHtml(content: String): String? {
+        val patterns = listOf(
+            "\"playlistId\":\"([A-Za-z0-9_-]+)\"".toRegex(),
+            "list=([A-Za-z0-9_-]+)".toRegex()
+        )
+
+        return patterns.asSequence()
+            .mapNotNull { it.find(content)?.groupValues?.getOrNull(1) }
+            .firstOrNull()
+    }
+
+    // ── RSS fetching with retry ─────────────────────────────────────────
+
+    /**
+     * Wraps [fetchRssFeed] with exponential-backoff retry for transient HTTP errors.
+     * @param sourceUrl the original user-supplied URL, for logging purposes only.
+     */
+    private suspend fun fetchRssFeedWithRetry(rssUrl: String, sourceUrl: String): List<YoutubeVideo> {
+        var lastException: Exception? = null
+        var delayMs = INITIAL_RETRY_DELAY_MS
+
+        repeat(MAX_RSS_RETRIES) { attempt ->
+            try {
+                val videos = fetchRssFeed(rssUrl)
+                if (videos.isNotEmpty() || attempt == MAX_RSS_RETRIES - 1) {
+                    if (attempt > 0) {
+                        Log.d(TAG, "RSS fetch succeeded on attempt ${attempt + 1} for $sourceUrl")
+                    }
+                    return videos
+                }
+                // Empty result could be transient — retry
+                Log.w(TAG, "RSS returned 0 videos for $sourceUrl (attempt ${attempt + 1}), retrying…")
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "RSS fetch attempt ${attempt + 1} failed for $sourceUrl: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e("YoutubeRssFetcher", "Error resolving handle $fullUrl", e)
-            null
+
+            if (attempt < MAX_RSS_RETRIES - 1) {
+                delay(delayMs)
+                delayMs *= 2
+            }
         }
+
+        Log.e(TAG, "All $MAX_RSS_RETRIES RSS fetch attempts failed for $sourceUrl ($rssUrl)", lastException)
+        return emptyList()
     }
 
     private fun fetchRssFeed(rssUrl: String): List<YoutubeVideo> {
@@ -122,14 +227,36 @@ object YoutubeRssFetcher {
         var connection: HttpURLConnection? = null
         try {
             connection = URL(rssUrl).openConnection() as HttpURLConnection
+            connection.instanceFollowRedirects = true
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+            connection.useCaches = false
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            connection.setRequestProperty("Accept", "application/atom+xml, application/xml, text/xml, */*")
+            connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                val errorBody = try {
+                    connection.errorStream?.bufferedReader()?.use { it.readText().take(200) } ?: "no error body"
+                } catch (_: Exception) { "could not read error body" }
+                Log.e(TAG, "RSS fetch failed for $rssUrl — HTTP $responseCode: $errorBody")
+                // Throw on retryable errors so the retry loop can catch them
+                if (responseCode in 500..599 || responseCode == 429 || responseCode == 404) {
+                    throw java.io.IOException("HTTP $responseCode for $rssUrl")
+                }
+                return emptyList()
+            }
+
             val inputStream = connection.inputStream
             val parser = Xml.newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
             parser.setInput(inputStream, null)
-            
+
             var eventType = parser.eventType
             var currentVideo: MutableYoutubeVideo? = null
-            var channelName = ""
+            var feedTitle = ""
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 val name = parser.name
@@ -137,42 +264,49 @@ object YoutubeRssFetcher {
                     XmlPullParser.START_TAG -> {
                         when (name) {
                             "title" -> {
+                                val text = readTextSafe(parser)
                                 if (currentVideo == null) {
-                                    if (channelName.isEmpty()) channelName = parser.nextText()
+                                    if (feedTitle.isEmpty()) feedTitle = text
                                 } else {
-                                    currentVideo.title = parser.nextText()
+                                    currentVideo.title = text
                                 }
                             }
-                            "entry" -> currentVideo = MutableYoutubeVideo(channelName = channelName)
+                            "entry" -> currentVideo = MutableYoutubeVideo(channelName = feedTitle)
                             "link" -> {
-                                if (currentVideo != null) {
-                                    val href = parser.getAttributeValue(null, "href")
-                                    if (href != null && href.contains("watch")) {
-                                        currentVideo.videoUrl = href
-                                    }
+                                val href = parser.getAttributeValue(null, "href")
+                                if (currentVideo != null && href != null && href.contains("watch")) {
+                                    currentVideo.videoUrl = href
                                 }
                             }
                             "published" -> {
-                                if (currentVideo != null) {
-                                    val dateStr = parser.nextText()
-                                    currentVideo.publishedAt = try {
-                                        dateFormat.parse(dateStr)
-                                    } catch (e: Exception) {
-                                        Date()
-                                    }
+                                val text = readTextSafe(parser)
+                                if (currentVideo != null && text.isNotBlank()) {
+                                    currentVideo.publishedAt = parseDateSafe(text)
                                 }
                             }
-                            "thumbnail" -> { // media:thumbnail becomes thumbnail with namespace processing
-                                if (currentVideo != null) {
-                                    currentVideo.thumbnailUrl = parser.getAttributeValue(null, "url")
+                            "updated" -> {
+                                val text = readTextSafe(parser)
+                                // Only use <updated> if <published> wasn't already set
+                                if (currentVideo != null && currentVideo.publishedAt == null && text.isNotBlank()) {
+                                    currentVideo.publishedAt = parseDateSafe(text)
+                                }
+                            }
+                            "thumbnail" -> {
+                                // Handles both <media:thumbnail> (namespace-aware) and plain <thumbnail>
+                                val url = parser.getAttributeValue(null, "url")
+                                if (currentVideo != null && url != null) {
+                                    currentVideo.thumbnailUrl = url
                                 }
                             }
                         }
                     }
                     XmlPullParser.END_TAG -> {
                         if (name == "entry" && currentVideo != null) {
-                            val video = currentVideo.toYoutubeVideo()
-                            if (video != null) videos.add(video)
+                            // Generate fallback thumbnail from video URL if none was found
+                            if (currentVideo.thumbnailUrl == null && currentVideo.videoUrl != null) {
+                                currentVideo.thumbnailUrl = buildFallbackThumbnail(currentVideo.videoUrl!!)
+                            }
+                            currentVideo.toYoutubeVideo()?.let { videos.add(it) }
                             currentVideo = null
                         }
                     }
@@ -180,11 +314,48 @@ object YoutubeRssFetcher {
                 eventType = parser.next()
             }
         } catch (e: Exception) {
-            Log.e("YoutubeRssFetcher", "Error parsing RSS $rssUrl", e)
+            Log.e(TAG, "Error parsing RSS $rssUrl: ${e.message}")
+            // Re-throw IOExceptions so the retry loop can handle them
+            if (e is java.io.IOException) throw e
         } finally {
             connection?.disconnect()
         }
         return videos
+    }
+
+    /**
+     * Safely reads text content from the current XML element.
+     * Handles empty elements like `<title/>` without crashing.
+     */
+    private fun readTextSafe(parser: XmlPullParser): String {
+        var result = ""
+        try {
+            val next = parser.next()
+            if (next == XmlPullParser.TEXT) {
+                result = parser.text ?: ""
+                parser.nextTag() // Move to END_TAG
+            }
+            // If next is already END_TAG (empty element), result stays ""
+        } catch (e: Exception) {
+            Log.w(TAG, "readTextSafe: could not read text: ${e.message}")
+        }
+        return result
+    }
+
+    /**
+     * Constructs a fallback HQ thumbnail URL from a YouTube watch URL.
+     * e.g. "https://www.youtube.com/watch?v=dQw4w9WgXcQ" → "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+     */
+    private fun buildFallbackThumbnail(videoUrl: String): String? {
+        return try {
+            val uri = android.net.Uri.parse(videoUrl)
+            val videoId = uri.getQueryParameter("v")
+            if (!videoId.isNullOrBlank()) {
+                "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+            } else null
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private data class MutableYoutubeVideo(
@@ -198,6 +369,19 @@ object YoutubeRssFetcher {
             return if (title != null && videoUrl != null && thumbnailUrl != null && publishedAt != null) {
                 YoutubeVideo(title!!, videoUrl!!, thumbnailUrl!!, publishedAt!!, channelName)
             } else null
+        }
+    }
+
+    private fun parseDateSafe(dateStr: String): Date {
+        if (dateStr.isBlank()) return Date(0)
+        return try {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX", Locale.US).parse(dateStr) ?: Date(0)
+        } catch (e: Exception) {
+            try {
+                SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSX", Locale.US).parse(dateStr) ?: Date(0)
+            } catch (e2: Exception) {
+                Date(0)
+            }
         }
     }
 }

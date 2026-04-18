@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -63,6 +64,7 @@ fun TopicDetailScreen(
     topicId: Long
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val checklistCount by viewModel.getChecklistItemCount().collectAsState(initial = 0)
     val topic = uiState.topic
     val materials = uiState.materials
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -315,6 +317,27 @@ fun TopicDetailScreen(
                             Icon(Icons.Default.Link, contentDescription = "Add Link")
                         }
                     }
+
+                    // Add Checklist
+                    AnimatedVisibility(
+                        visible = fabExpanded,
+                        enter = fadeIn(tween(200, delayMillis = 150)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 150)),
+                        exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
+                    ) {
+                        SmallFloatingActionButton(
+                            onClick = {
+                                HapticUtils.playClick(context)
+                                topic?.let {
+                                    navController.navigate(Screen.TopicChecklist.createRoute(it.id))
+                                }
+                                fabExpanded = false
+                            },
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ) {
+                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Add Checklist")
+                        }
+                    }
                 }
 
                 // Main FAB
@@ -350,12 +373,61 @@ fun TopicDetailScreen(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item {
-                    Text(
-                        text = "Materials",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                if (checklistCount > 0) {
+                    item {
+                        Card(
+                            onClick = {
+                                topic?.let {
+                                    HapticUtils.playClick(context)
+                                    navController.navigate(Screen.TopicChecklist.createRoute(it.id))
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.FormatListBulleted,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Topic Checklist",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "$checklistCount item${if (checklistCount == 1) "" else "s"} to track",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (materials.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Materials",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
                 }
 
                 if (materials.isEmpty()) {

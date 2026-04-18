@@ -24,6 +24,29 @@ interface CachedVideoDao {
         insertAll(videos)
     }
 
+    /**
+     * Merges new videos into the existing cache for a feed.
+     * Inserts videos that don't already exist (by videoUrl) and updates cachedAt
+     * for the entire feed so staleness checks work correctly.
+     */
+    @Transaction
+    suspend fun mergeCache(feedId: Long, videos: List<CachedVideo>) {
+        if (videos.isEmpty()) return
+        val existingUrls = getVideoUrlsForFeed(feedId).toSet()
+        val newVideos = videos.filter { it.videoUrl !in existingUrls }
+        if (newVideos.isNotEmpty()) {
+            insertAll(newVideos)
+        }
+        // Always update cachedAt on at least one row so staleness check reflects this sync
+        updateCachedAt(feedId, System.currentTimeMillis())
+    }
+
+    @Query("SELECT videoUrl FROM cached_videos WHERE feedId = :feedId")
+    suspend fun getVideoUrlsForFeed(feedId: Long): List<String>
+
+    @Query("UPDATE cached_videos SET cachedAt = :cachedAtMs WHERE feedId = :feedId AND id = (SELECT id FROM cached_videos WHERE feedId = :feedId LIMIT 1)")
+    suspend fun updateCachedAt(feedId: Long, cachedAtMs: Long)
+
     @Query("DELETE FROM cached_videos WHERE feedId = :feedId")
     suspend fun deleteByFeedId(feedId: Long)
 }

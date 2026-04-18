@@ -22,6 +22,9 @@ class VideoCacheRepository @Inject constructor(
     suspend fun replaceCache(feedId: Long, videos: List<CachedVideo>) =
         cachedVideoDao.replaceCache(feedId, videos)
 
+    suspend fun mergeCache(feedId: Long, videos: List<CachedVideo>) =
+        cachedVideoDao.mergeCache(feedId, videos)
+
     suspend fun clearCache(feedId: Long) =
         cachedVideoDao.deleteByFeedId(feedId)
 }

@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.MaterialType
 import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.repository.TopicChecklistRepository
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
@@ -34,6 +35,7 @@ data class TopicDetailUiState(
 @HiltViewModel
 class TopicDetailViewModel @Inject constructor(
     private val topicRepository: TopicRepository,
+    private val topicChecklistRepository: TopicChecklistRepository,
     private val materialRepository: MaterialRepository,
     private val streakRepository: StreakRepository,
     savedStateHandle: SavedStateHandle,
@@ -165,4 +167,6 @@ class TopicDetailViewModel @Inject constructor(
             }
         }
     }
+
+    fun getChecklistItemCount() = topicChecklistRepository.getItemCountForTopic(topicId)
 }

@@ -9,9 +9,11 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Topic
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.rajveer.materialbox.util.HapticUtils
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,7 @@ fun SubjectDetailScreen(
     val subject by viewModel.subject.collectAsState()
     val topics by viewModel.topics.collectAsState()
     val youtubeFeeds by viewModel.youtubeFeeds.collectAsState()
+    val roadmapItemCount by viewModel.getRoadmapItemCount().collectAsState(initial = 0)
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedActionTopic by remember { mutableStateOf<Topic?>(null) }
     var selectedActionYoutubeFeed by remember { mutableStateOf<YoutubeFeed?>(null) }
@@ -55,31 +59,33 @@ fun SubjectDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = subject?.name ?: "",
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { 
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = subject?.name ?: "",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {
                             HapticUtils.playHeavyClick(context)
-                        showDeleteDialog = true 
-                    }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete Subject")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                            showDeleteDialog = true
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Delete Subject")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
                 )
-            )
+            }
         },
         floatingActionButton = {
             Column(
@@ -121,7 +127,7 @@ fun SubjectDetailScreen(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ) {
-                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Study Roadmap")
+                            Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "Study Roadmap")
                         }
                     }
 
@@ -157,11 +163,11 @@ fun SubjectDetailScreen(
                         if (fabExpanded) Icons.Default.Close else Icons.Default.Add,
                         contentDescription = "Expand menu",
                         tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
+                )
             }
         }
-    ) { padding ->
+    }
+) { padding ->
         if (subject == null) {
             Box(
                 modifier = Modifier
@@ -172,206 +178,233 @@ fun SubjectDetailScreen(
                 CircularProgressIndicator()
             }
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item {
-                    Card(
-                        onClick = {
-                            HapticUtils.playClick(context)
-                            navController.navigate(Screen.Roadmap.createRoute(subjectId))
-                        },
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.FormatListBulleted, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                "Study Roadmap",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
+                        item { Spacer(modifier = Modifier.height(4.dp)) }
 
-                item {
-                    Text(
-                        text = "Topics",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                if (topics.isEmpty() && youtubeFeeds.isEmpty()) {
-                    item {
-                        EmptyStateCard(
-                            icon = Icons.Outlined.Topic,
-                            title = "No content yet",
-                            subtitle = "Tap the + button to add a topic or YouTube feed"
-                        )
-                    }
-                } else {
-                    if (topics.isNotEmpty()) {
-                        items(topics) { topic ->
-                            val topicMaterialCount by viewModel.getMaterialCountForTopic(topic.id).collectAsState(initial = 0)
-                            TopicCard(
-                                topic = topic,
-                                onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
-                                onLongPress = {
-                                    selectedActionTopic = topic
-                                },
-                                materialCount = topicMaterialCount
-                            )
-                        }
-                    }
-
-                    if (youtubeFeeds.isNotEmpty()) {
+                        // Roadmap entry card
+                        val showRoadmapTitle = roadmapItemCount > 0
                         item {
-                            Text(
-                                text = "YouTube Feeds",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(top = 16.dp)
-                            )
-                        }
-
-                        items(youtubeFeeds) { feed ->
-                            YoutubeFeedCard(
-                                feed = feed,
-                                onClick = { navController.navigate(Screen.YoutubeFeedDetail.createRoute(feed.id)) },
-                                onLongPress = {
-                                    selectedActionYoutubeFeed = feed
+                            Card(
+                                onClick = {
+                                    HapticUtils.playClick(context)
+                                    navController.navigate(Screen.Roadmap.createRoute(subjectId))
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.FormatListBulleted,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Study Roadmap",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        if (showRoadmapTitle) {
+                                            Text(
+                                                text = "$roadmapItemCount goal${if (roadmapItemCount == 1) "" else "s"} set",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            )
-                        }
-                    }
-                }
-
-                // Bottom spacer for FAB
-                item { Spacer(modifier = Modifier.height(80.dp)) }
-            }
-        }
-
-        // Action Menu Bottom Sheet for Topics
-        if (selectedActionTopic != null) {
-            ActionMenuBottomSheet(
-                title = selectedActionTopic?.name ?: "Options",
-                onDismissRequest = { selectedActionTopic = null },
-                onEditClick = { showEditTopicDialog = selectedActionTopic },
-                onDeleteClick = { showTopicDeleteDialog = selectedActionTopic }
-            )
-        }
-
-        // Action Menu Bottom Sheet for YouTube Feeds
-        if (selectedActionYoutubeFeed != null) {
-            ActionMenuBottomSheet(
-                title = selectedActionYoutubeFeed?.name ?: "Options",
-                onDismissRequest = { selectedActionYoutubeFeed = null },
-                onEditClick = null, // Edit not implemented yet for feeds
-                onDeleteClick = { 
-                    HapticUtils.playHeavyClick(context)
-                    selectedActionYoutubeFeed?.let { viewModel.deleteYoutubeFeed(it) }
-                    selectedActionYoutubeFeed = null
-                }
-            )
-        }
-
-        // Edit topic dialog
-        if (showEditTopicDialog != null) {
-            var editedName by remember { mutableStateOf(showEditTopicDialog?.name ?: "") }
-            AlertDialog(
-                onDismissRequest = { showEditTopicDialog = null },
-                title = { Text("Rename Topic") },
-                text = {
-                    OutlinedTextField(
-                        value = editedName,
-                        onValueChange = { editedName = it },
-                        label = { Text("Topic Name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (editedName.isNotBlank()) {
-                                showEditTopicDialog?.let { topic ->
-                                    viewModel.updateTopic(topic.copy(name = editedName.trim()))
-                                }
-                                showEditTopicDialog = null
                             }
                         }
-                    ) {
-                        Text("Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showEditTopicDialog = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
 
-        // Delete topic dialog
-        if (showTopicDeleteDialog != null) {
-            AlertDialog(
-                onDismissRequest = { showTopicDeleteDialog = null },
-                title = { Text("Delete Topic") },
-                text = { Text("This will also delete all materials inside it.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            HapticUtils.playHeavyClick(context)
-                            showTopicDeleteDialog?.let { viewModel.deleteTopic(it) }
-                            showTopicDeleteDialog = null
-                        }
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showTopicDeleteDialog = null }) {
-                        Text("Cancel")
-                    }
-                }
-            )
-        }
+                        if (topics.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "Topics",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
 
-        // Delete subject dialog
-        if (showDeleteDialog) {
-            AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Delete Subject") },
-                text = { Text("This will delete all topics and materials inside it.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteSubject()
-                            showDeleteDialog = false
-                            navController.navigateUp()
+                            items(topics) { topic ->
+                                val topicMaterialCount by viewModel.getMaterialCountForTopic(topic.id).collectAsState(initial = 0)
+                                TopicCard(
+                                    topic = topic,
+                                    onClick = { navController.navigate(Screen.TopicDetail.createRoute(topic.id)) },
+                                    onLongPress = {
+                                        selectedActionTopic = topic
+                                    },
+                                    materialCount = topicMaterialCount
+                                )
+                            }
                         }
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
+
+                        if (youtubeFeeds.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "YouTube Feeds",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(top = 16.dp)
+                                )
+                            }
+
+                            items(youtubeFeeds) { feed ->
+                                YoutubeFeedCard(
+                                    feed = feed,
+                                    onClick = { navController.navigate(Screen.YoutubeFeedDetail.createRoute(feed.id)) },
+                                    onLongPress = {
+                                        selectedActionYoutubeFeed = feed
+                                    }
+                                )
+                            }
+                        }
+
+                        if (topics.isEmpty() && youtubeFeeds.isEmpty()) {
+                            item {
+                                EmptyStateCard(
+                                    icon = Icons.Outlined.Topic,
+                                    title = "No content yet",
+                                    subtitle = "Tap the + button to add a topic or YouTube feed"
+                                )
+                            }
+                        }
+
+                        // Bottom spacer for FAB
+                        item { Spacer(modifier = Modifier.height(80.dp)) }
                     }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteDialog = false }) {
-                        Text("Cancel")
-                    }
-                }
-            )
+            }
         }
+    }
+
+    // Action Menu Bottom Sheet for Topics
+    if (selectedActionTopic != null) {
+        ActionMenuBottomSheet(
+            title = selectedActionTopic?.name ?: "Options",
+            onDismissRequest = { selectedActionTopic = null },
+            onEditClick = { showEditTopicDialog = selectedActionTopic },
+            onDeleteClick = { showTopicDeleteDialog = selectedActionTopic }
+        )
+    }
+
+    // Action Menu Bottom Sheet for YouTube Feeds
+    if (selectedActionYoutubeFeed != null) {
+        ActionMenuBottomSheet(
+            title = selectedActionYoutubeFeed?.name ?: "Options",
+            onDismissRequest = { selectedActionYoutubeFeed = null },
+            onEditClick = null, // Edit not implemented yet for feeds
+            onDeleteClick = { 
+                HapticUtils.playHeavyClick(context)
+                selectedActionYoutubeFeed?.let { viewModel.deleteYoutubeFeed(it) }
+                selectedActionYoutubeFeed = null
+            }
+        )
+    }
+
+    // Edit topic dialog
+    if (showEditTopicDialog != null) {
+        var editedName by remember { mutableStateOf(showEditTopicDialog?.name ?: "") }
+        AlertDialog(
+            onDismissRequest = { showEditTopicDialog = null },
+            title = { Text("Rename Topic") },
+            text = {
+                OutlinedTextField(
+                    value = editedName,
+                    onValueChange = { editedName = it },
+                    label = { Text("Topic Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (editedName.isNotBlank()) {
+                            showEditTopicDialog?.let { topic ->
+                                viewModel.updateTopic(topic.copy(name = editedName.trim()))
+                            }
+                            showEditTopicDialog = null
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditTopicDialog = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Delete topic dialog
+    if (showTopicDeleteDialog != null) {
+        AlertDialog(
+            onDismissRequest = { showTopicDeleteDialog = null },
+            title = { Text("Delete Topic") },
+            text = { Text("This will also delete all materials inside it.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        HapticUtils.playHeavyClick(context)
+                        showTopicDeleteDialog?.let { viewModel.deleteTopic(it) }
+                        showTopicDeleteDialog = null
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTopicDeleteDialog = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Delete subject dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Subject") },
+            text = { Text("This will delete all topics and materials inside it.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteSubject()
+                        showDeleteDialog = false
+                        navController.navigateUp()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

@@ -9,12 +9,14 @@ import com.rajveer.materialbox.data.dao.RoadmapDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.SubjectStreakDao
 import com.rajveer.materialbox.data.dao.TopicDao
+import com.rajveer.materialbox.data.dao.TopicChecklistDao
 import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
 import com.rajveer.materialbox.data.repository.RoadmapRepository
 import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
+import com.rajveer.materialbox.data.repository.TopicChecklistRepository
 import com.rajveer.materialbox.data.repository.TopicRepository
 import com.rajveer.materialbox.data.repository.VideoCacheRepository
 import com.rajveer.materialbox.data.repository.WatchedVideoRepository
@@ -45,7 +47,8 @@ object AppModule {
             AppDatabase.MIGRATION_3_4,
             AppDatabase.MIGRATION_4_5,
             AppDatabase.MIGRATION_5_6,
-            AppDatabase.MIGRATION_6_7
+            AppDatabase.MIGRATION_6_7,
+            AppDatabase.MIGRATION_7_8
         )
         .build()
     }
@@ -72,6 +75,9 @@ object AppModule {
     fun provideRoadmapDao(db: AppDatabase): RoadmapDao = db.roadmapDao()
 
     @Provides @Singleton
+    fun provideTopicChecklistDao(db: AppDatabase): TopicChecklistDao = db.topicChecklistDao()
+
+    @Provides @Singleton
     fun provideSubjectStreakDao(db: AppDatabase): SubjectStreakDao = db.subjectStreakDao()
 
     @Provides @Singleton
@@ -94,6 +100,10 @@ object AppModule {
 
     @Provides @Singleton
     fun provideRoadmapRepository(dao: RoadmapDao): RoadmapRepository = RoadmapRepository(dao)
+
+    @Provides @Singleton
+    fun provideTopicChecklistRepository(dao: TopicChecklistDao): TopicChecklistRepository =
+        TopicChecklistRepository(dao)
 
     @Provides @Singleton
     fun provideStreakRepository(dao: SubjectStreakDao): StreakRepository = StreakRepository(dao)

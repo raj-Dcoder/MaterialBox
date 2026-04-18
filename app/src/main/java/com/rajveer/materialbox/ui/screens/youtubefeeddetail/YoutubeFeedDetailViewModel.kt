@@ -77,16 +77,14 @@ class YoutubeFeedDetailViewModel @Inject constructor(
             ) { cached, watchedUrls ->
                 cached.map { it.toUiModel(watchedUrls) }
             }.collect { videos ->
-                if (videos.isNotEmpty()) {
-                    _uiState.update { state ->
-                        state.copy(
-                            videos = videos,
-                            lastCachedAt = videos.firstOrNull()?.let {
-                                videoCacheRepository.getLastCachedAt(feedId)
-                            },
-                            isLoading = false
-                        )
-                    }
+                val lastCachedAt = videoCacheRepository.getLastCachedAt(feedId)
+                _uiState.update { state ->
+                    state.copy(
+                        videos = videos,
+                        lastCachedAt = lastCachedAt,
+                        isLoading = false,
+                        isRefreshing = false
+                    )
                 }
             }
         }
@@ -103,10 +101,16 @@ class YoutubeFeedDetailViewModel @Inject constructor(
         }
     }
 
-    fun refreshFeed() = fetchVideos(isManualRefresh = true)
+    fun refreshFeed() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            feedSyncManager.forceSync(feedId)
+            // The UI will auto-update via the Room Flow observer in observeVideosWithWatchedState()
+        }
+    }
 
-    private fun fetchVideos(isManualRefresh: Boolean) {
-        val channelUrls = _uiState.value.feed?.channelUrls
+    private fun fetchVideos(isManualRefresh: Boolean, channelUrlsOverride: List<String>? = null) {
+        val channelUrls = channelUrlsOverride ?: _uiState.value.feed?.channelUrls
         if (channelUrls.isNullOrEmpty()) return
 
         viewModelScope.launch {
@@ -116,6 +120,16 @@ class YoutubeFeedDetailViewModel @Inject constructor(
             }
             try {
                 val videos = YoutubeRssFetcher.fetchVideosFromChannels(channelUrls)
+                if (videos.isEmpty()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            error = "Couldn't find videos for the configured channels/playlists."
+                        )
+                    }
+                    return@launch
+                }
                 val now = Date()
                 val cachedEntities = videos.map { v ->
                     CachedVideo(
@@ -128,7 +142,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
                         cachedAt = now
                     )
                 }
-                videoCacheRepository.replaceCache(feedId, cachedEntities)
+                videoCacheRepository.mergeCache(feedId, cachedEntities)
                 _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
             } catch (e: Exception) {
                 _uiState.update {
@@ -149,7 +163,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
                 youtubeFeedRepository.updateYoutubeFeed(updated)
                 if (updated.channelUrls != currentFeed.channelUrls) {
                     videoCacheRepository.clearCache(feedId)
-                    fetchVideos(isManualRefresh = false)
+                    fetchVideos(isManualRefresh = false, channelUrlsOverride = updated.channelUrls)
                 }
             }
         }

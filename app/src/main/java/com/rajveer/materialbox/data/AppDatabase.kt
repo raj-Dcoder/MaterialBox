@@ -14,6 +14,7 @@ import com.rajveer.materialbox.data.dao.CachedVideoDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
+import com.rajveer.materialbox.data.dao.TopicChecklistDao
 import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.dao.RoadmapDao
@@ -24,6 +25,7 @@ import com.rajveer.materialbox.data.entity.CachedVideo
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.entity.TopicChecklistItem
 import com.rajveer.materialbox.data.entity.WatchedVideo
 import com.rajveer.materialbox.data.entity.YoutubeFeed
 
@@ -31,9 +33,9 @@ import com.rajveer.materialbox.data.entity.YoutubeFeed
     entities = [
         Subject::class, Topic::class, Material::class,
         YoutubeFeed::class, CachedVideo::class, WatchedVideo::class,
-        RoadmapItem::class, SubjectStreak::class
+        RoadmapItem::class, SubjectStreak::class, TopicChecklistItem::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -45,6 +47,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cachedVideoDao(): CachedVideoDao
     abstract fun watchedVideoDao(): WatchedVideoDao
     abstract fun roadmapDao(): RoadmapDao
+    abstract fun topicChecklistDao(): TopicChecklistDao
     abstract fun subjectStreakDao(): SubjectStreakDao
 
     companion object {
@@ -163,6 +166,32 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE roadmap_items ADD COLUMN isCollapsed INTEGER NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS topic_checklist_items (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        topicId INTEGER NOT NULL,
+                        parentId INTEGER,
+                        text TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        isCollapsed INTEGER NOT NULL DEFAULT 0,
+                        position INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        FOREIGN KEY(topicId) REFERENCES topics(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(parentId) REFERENCES topic_checklist_items(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_topic_checklist_items_topicId ON topic_checklist_items(topicId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_topic_checklist_items_parentId ON topic_checklist_items(parentId)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -172,7 +201,7 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7
+                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8
                     )
                     .build()
                 INSTANCE = instance

@@ -1,52 +1,62 @@
-package com.rajveer.materialbox.ui.screens.roadmap
+package com.rajveer.materialbox.ui.screens.topicchecklist
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rajveer.materialbox.data.entity.RoadmapItem
-import com.rajveer.materialbox.data.repository.RoadmapRepository
+import com.rajveer.materialbox.data.entity.Topic
+import com.rajveer.materialbox.data.entity.TopicChecklistItem
 import com.rajveer.materialbox.data.repository.StreakRepository
+import com.rajveer.materialbox.data.repository.TopicChecklistRepository
+import com.rajveer.materialbox.data.repository.TopicRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class RoadmapListItem(
-    val item: RoadmapItem,
+data class TopicChecklistListItem(
+    val item: TopicChecklistItem,
     val isChild: Boolean,
     val totalChildren: Int = 0,
     val completedChildren: Int = 0
 )
 
 @HiltViewModel
-class RoadmapViewModel @Inject constructor(
-    private val roadmapRepository: RoadmapRepository,
+class TopicChecklistViewModel @Inject constructor(
+    private val topicRepository: TopicRepository,
+    private val topicChecklistRepository: TopicChecklistRepository,
     private val streakRepository: StreakRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val subjectId: Long = checkNotNull(savedStateHandle["subjectId"])
+    private val topicId: Long = checkNotNull(savedStateHandle["topicId"])
 
-    private val _localItems = MutableStateFlow<List<RoadmapListItem>>(emptyList())
-    val items: StateFlow<List<RoadmapListItem>> = _localItems.asStateFlow()
+    val topic: StateFlow<Topic?> = topicRepository.getTopicById(topicId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = null
+        )
+
+    private val _localItems = MutableStateFlow<List<TopicChecklistListItem>>(emptyList())
+    val items: StateFlow<List<TopicChecklistListItem>> = _localItems.asStateFlow()
 
     init {
         viewModelScope.launch {
-            roadmapRepository.getItemsForSubject(subjectId)
+            topicChecklistRepository.getItemsForTopic(topicId)
                 .map(::buildListItems)
                 .collect {
-                _localItems.value = it
-            }
+                    _localItems.value = it
+                }
         }
     }
 
-    val progress = roadmapRepository.getProgress(subjectId)
+    val progress = topicChecklistRepository.getProgress(topicId)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -56,23 +66,22 @@ class RoadmapViewModel @Inject constructor(
     fun addItem(text: String, parentId: Long? = null) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        
+
         viewModelScope.launch {
-            val allItems = roadmapRepository.getItemsForSubject(subjectId).first()
+            val allItems = topicChecklistRepository.getItemsForTopic(topicId).first()
             val position = allItems.count { it.parentId == parentId }
-            
-            val item = RoadmapItem(
-                subjectId = subjectId,
+            val item = TopicChecklistItem(
+                topicId = topicId,
                 parentId = parentId,
                 text = trimmed,
                 position = position
             )
-            roadmapRepository.insertItem(item)
+            topicChecklistRepository.insertItem(item)
 
             if (parentId != null) {
                 val parent = allItems.find { it.id == parentId }
                 if (parent != null && parent.isCollapsed) {
-                    roadmapRepository.updateItem(parent.copy(isCollapsed = false))
+                    topicChecklistRepository.updateItem(parent.copy(isCollapsed = false))
                 }
             }
         }
@@ -80,42 +89,44 @@ class RoadmapViewModel @Inject constructor(
 
     fun toggleParentExpansion(parentId: Long) {
         viewModelScope.launch {
-            val parent = roadmapRepository.getItemsForSubject(subjectId).first().find { it.id == parentId } ?: return@launch
-            roadmapRepository.updateItem(parent.copy(isCollapsed = !parent.isCollapsed))
+            val parent = topicChecklistRepository.getItemsForTopic(topicId).first().find { it.id == parentId } ?: return@launch
+            topicChecklistRepository.updateItem(parent.copy(isCollapsed = !parent.isCollapsed))
         }
     }
 
-    fun toggleItemCompletion(item: RoadmapItem) {
+    fun toggleItemCompletion(item: TopicChecklistItem) {
         viewModelScope.launch {
             val newCompleted = !item.isCompleted
-            roadmapRepository.updateItem(item.copy(isCompleted = newCompleted))
-            
+            topicChecklistRepository.updateItem(item.copy(isCompleted = newCompleted))
+
             if (item.parentId != null) {
-                // Check siblings
-                val allItems = roadmapRepository.getItemsForSubject(subjectId).first()
+                val allItems = topicChecklistRepository.getItemsForTopic(topicId).first()
                 val children = allItems.filter { it.parentId == item.parentId }
                 val parent = allItems.find { it.id == item.parentId }
-                
-                val updatedChildren = children.map { if (it.id == item.id) it.copy(isCompleted = newCompleted) else it }
+                val updatedChildren = children.map { current ->
+                    if (current.id == item.id) current.copy(isCompleted = newCompleted) else current
+                }
                 val allChildrenCompleted = updatedChildren.isNotEmpty() && updatedChildren.all { it.isCompleted }
-                
+
                 if (parent != null && parent.isCompleted != allChildrenCompleted) {
-                    roadmapRepository.updateItem(parent.copy(isCompleted = allChildrenCompleted))
+                    topicChecklistRepository.updateItem(parent.copy(isCompleted = allChildrenCompleted))
                 }
             }
+
+            // Do not record streak activity when checking off checklist items.
         }
     }
 
-    fun deleteItem(item: RoadmapItem) {
+    fun deleteItem(item: TopicChecklistItem) {
         viewModelScope.launch {
-            roadmapRepository.deleteItem(item)
+            topicChecklistRepository.deleteItem(item)
         }
     }
 
-    fun editItem(item: RoadmapItem, newText: String) {
+    fun editItem(item: TopicChecklistItem, newText: String) {
         if (newText.isBlank()) return
         viewModelScope.launch {
-            roadmapRepository.updateItem(item.copy(text = newText))
+            topicChecklistRepository.updateItem(item.copy(text = newText))
         }
     }
 
@@ -123,10 +134,8 @@ class RoadmapViewModel @Inject constructor(
         val list = _localItems.value.toMutableList()
         val fromNode = list.getOrNull(fromIndex) ?: return
         val toNode = list.getOrNull(toIndex) ?: return
-        
-        // Constraint: Can only swap if both are top-level or both are children of the SAME parent.
         if (fromNode.item.parentId != toNode.item.parentId) return
-        
+
         val moved = list.removeAt(fromIndex)
         list.add(toIndex, moved)
         _localItems.value = list
@@ -134,10 +143,9 @@ class RoadmapViewModel @Inject constructor(
 
     fun onDragEnd() {
         viewModelScope.launch {
-            // Save the current flat list ordering to DB.
-            val updates = mutableListOf<RoadmapItem>()
+            val updates = mutableListOf<TopicChecklistItem>()
             val groupedList = _localItems.value.map { it.item }.groupBy { it.parentId }
-            
+
             for ((_, group) in groupedList) {
                 group.forEachIndexed { index, item ->
                     if (item.position != index) {
@@ -145,17 +153,17 @@ class RoadmapViewModel @Inject constructor(
                     }
                 }
             }
-            
+
             if (updates.isNotEmpty()) {
-                roadmapRepository.updateItems(updates)
+                topicChecklistRepository.updateItems(updates)
             }
         }
     }
 
-    private fun buildListItems(allItems: List<RoadmapItem>): List<RoadmapListItem> {
+    private fun buildListItems(allItems: List<TopicChecklistItem>): List<TopicChecklistListItem> {
         val grouped = allItems.groupBy { it.parentId }
         val topLevel = grouped[null].orEmpty().sortedForChecklist()
-        val result = mutableListOf<RoadmapListItem>()
+        val result = mutableListOf<TopicChecklistListItem>()
 
         for (parent in topLevel) {
             val children = grouped[parent.id].orEmpty().sortedForChecklist()
@@ -163,7 +171,7 @@ class RoadmapViewModel @Inject constructor(
             val completed = children.count { it.isCompleted }
 
             result.add(
-                RoadmapListItem(
+                TopicChecklistListItem(
                     item = parent,
                     isChild = false,
                     totalChildren = total,
@@ -173,7 +181,7 @@ class RoadmapViewModel @Inject constructor(
 
             if (!parent.isCollapsed) {
                 children.forEach { child ->
-                    result.add(RoadmapListItem(child, isChild = true))
+                    result.add(TopicChecklistListItem(item = child, isChild = true))
                 }
             }
         }
@@ -181,9 +189,9 @@ class RoadmapViewModel @Inject constructor(
         return result
     }
 
-    private fun List<RoadmapItem>.sortedForChecklist(): List<RoadmapItem> =
+    private fun List<TopicChecklistItem>.sortedForChecklist(): List<TopicChecklistItem> =
         sortedWith(
-            compareBy<RoadmapItem> { it.isCompleted }
+            compareBy<TopicChecklistItem> { it.isCompleted }
                 .thenBy { it.position }
                 .thenBy { it.createdAt.time }
         )

@@ -1,11 +1,28 @@
-package com.rajveer.materialbox.ui.screens.roadmap
+package com.rajveer.materialbox.ui.screens.topicchecklist
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,12 +33,36 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FormatListBulleted
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,7 +70,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -37,7 +77,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.rajveer.materialbox.data.entity.RoadmapItem
+import com.rajveer.materialbox.data.entity.TopicChecklistItem
 import com.rajveer.materialbox.util.HapticUtils
 import org.burnoutcrew.reorderable.ReorderableItem
 import org.burnoutcrew.reorderable.detectReorderAfterLongPress
@@ -46,22 +86,23 @@ import org.burnoutcrew.reorderable.reorderable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoadmapScreen(
+fun TopicChecklistScreen(
     navController: NavController,
-    viewModel: RoadmapViewModel = hiltViewModel()
+    viewModel: TopicChecklistViewModel = hiltViewModel()
 ) {
+    val topic by viewModel.topic.collectAsState()
     val items by viewModel.items.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val context = LocalContext.current
     var newItemText by remember { mutableStateOf("") }
-    var parentForSubGoal by remember { mutableStateOf<RoadmapItem?>(null) }
-    var itemToDelete by remember { mutableStateOf<RoadmapItem?>(null) }
-    var itemToEdit by remember { mutableStateOf<RoadmapItem?>(null) }
+    var parentForSubtask by remember { mutableStateOf<TopicChecklistItem?>(null) }
+    var itemToDelete by remember { mutableStateOf<TopicChecklistItem?>(null) }
+    var itemToEdit by remember { mutableStateOf<TopicChecklistItem?>(null) }
     var editItemText by remember { mutableStateOf("") }
 
     val state = rememberReorderableLazyListState(
         onMove = { from, to -> viewModel.onDragMove(from.index, to.index) },
-        canDragOver = { draggedOver, dragging -> 
+        canDragOver = { draggedOver, dragging ->
             val fromItem = items.getOrNull(dragging.index)?.item
             val toItem = items.getOrNull(draggedOver.index)?.item
             fromItem != null && toItem != null && fromItem.parentId == toItem.parentId
@@ -78,9 +119,9 @@ fun RoadmapScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Study Roadmap")
+                        Text(topic?.name?.let { "$it Checklist" } ?: "Topic Checklist")
                         Text(
-                            text = "Plan your subject with goals and sub-goals",
+                            text = "Track topic progress with items and subtasks",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -113,7 +154,7 @@ fun RoadmapScreen(
                         value = newItemText,
                         onValueChange = { newItemText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Add a goal") },
+                        placeholder = { Text("Add a checklist item") },
                         shape = RoundedCornerShape(24.dp),
                         singleLine = true,
                         trailingIcon = {
@@ -166,9 +207,9 @@ fun RoadmapScreen(
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    EmptyChecklistState(
-                        title = "Your roadmap is empty",
-                        subtitle = "Add a big goal first, then break it into smaller steps."
+                    TopicChecklistEmptyState(
+                        title = "This checklist is empty",
+                        subtitle = "Add a parent item first, then split it into subtasks."
                     )
                 }
             } else {
@@ -185,14 +226,14 @@ fun RoadmapScreen(
                         ReorderableItem(state, key = listItem.item.id) { isDragging ->
                             val elevation by animateDpAsState(
                                 targetValue = if (isDragging) 10.dp else 0.dp,
-                                label = "roadmapElevation"
+                                label = "topicChecklistElevation"
                             )
 
                             if (listItem.isChild) {
                                 val siblings = items.filter { it.item.parentId == listItem.item.parentId }
                                 val isLastChild = siblings.lastOrNull()?.item?.id == listItem.item.id
 
-                                RoadmapChildRow(
+                                TopicChecklistChildRow(
                                     item = listItem.item,
                                     elevation = elevation,
                                     isLastChild = isLastChild,
@@ -213,7 +254,7 @@ fun RoadmapScreen(
                                     modifier = Modifier.padding(start = 18.dp)
                                 )
                             } else {
-                                RoadmapParentRow(
+                                TopicChecklistParentRow(
                                     item = listItem.item,
                                     elevation = elevation,
                                     hasChildren = listItem.totalChildren > 0,
@@ -237,7 +278,7 @@ fun RoadmapScreen(
                                         HapticUtils.playHeavyClick(context)
                                         itemToDelete = it
                                     },
-                                    onAddSubGoal = { parentForSubGoal = listItem.item },
+                                    onAddSubtask = { parentForSubtask = listItem.item },
                                     dragModifier = Modifier.detectReorderAfterLongPress(state)
                                 )
                             }
@@ -247,17 +288,16 @@ fun RoadmapScreen(
             }
         }
 
-        // Add Sub-goal dialog
-        if (parentForSubGoal != null) {
-            var subGoalText by remember { mutableStateOf("") }
+        if (parentForSubtask != null) {
+            var subtaskText by remember { mutableStateOf("") }
             AlertDialog(
-                onDismissRequest = { parentForSubGoal = null },
-                title = { Text("Add Sub-goal") },
+                onDismissRequest = { parentForSubtask = null },
+                title = { Text("Add Subtask") },
                 text = {
                     OutlinedTextField(
-                        value = subGoalText,
-                        onValueChange = { subGoalText = it },
-                        label = { Text("Sub-goal description") },
+                        value = subtaskText,
+                        onValueChange = { subtaskText = it },
+                        label = { Text("Subtask description") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -265,10 +305,10 @@ fun RoadmapScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (subGoalText.isNotBlank()) {
+                            if (subtaskText.isNotBlank()) {
                                 HapticUtils.playClick(context)
-                                viewModel.addItem(subGoalText, parentId = parentForSubGoal?.id)
-                                parentForSubGoal = null
+                                viewModel.addItem(subtaskText, parentId = parentForSubtask?.id)
+                                parentForSubtask = null
                             }
                         }
                     ) {
@@ -276,7 +316,7 @@ fun RoadmapScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { parentForSubGoal = null }) {
+                    TextButton(onClick = { parentForSubtask = null }) {
                         Text("Cancel")
                     }
                 }
@@ -350,7 +390,7 @@ fun RoadmapScreen(
 }
 
 @Composable
-private fun RoadmapOverviewCard(
+fun TopicChecklistOverviewCard(
     totalItems: Int,
     completedItems: Int,
     progress: Float
@@ -375,7 +415,7 @@ private fun RoadmapOverviewCard(
             ) {
                 Column {
                     Text(
-                        text = "Overall Progress",
+                        text = "Topic Progress",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                     )
@@ -418,7 +458,7 @@ private fun RoadmapOverviewCard(
 }
 
 @Composable
-private fun MetricPill(label: String) {
+private fun TopicMetricPill(label: String) {
     Surface(
         shape = RoundedCornerShape(999.dp),
         color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.10f)
@@ -433,7 +473,7 @@ private fun MetricPill(label: String) {
 }
 
 @Composable
-private fun EmptyChecklistState(
+private fun TopicChecklistEmptyState(
     title: String,
     subtitle: String
 ) {
@@ -478,18 +518,18 @@ private fun EmptyChecklistState(
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun RoadmapParentRow(
-    item: RoadmapItem,
+private fun TopicChecklistParentRow(
+    item: TopicChecklistItem,
     elevation: Dp,
     hasChildren: Boolean,
-    totalChildren: Int = 0,
-    completedChildren: Int = 0,
+    totalChildren: Int,
+    completedChildren: Int,
     isExpanded: Boolean,
     onToggleExpand: () -> Unit,
-    onToggle: (RoadmapItem) -> Unit,
-    onEdit: (RoadmapItem) -> Unit,
-    onDelete: (RoadmapItem) -> Unit,
-    onAddSubGoal: () -> Unit,
+    onToggle: (TopicChecklistItem) -> Unit,
+    onEdit: (TopicChecklistItem) -> Unit,
+    onDelete: (TopicChecklistItem) -> Unit,
+    onAddSubtask: () -> Unit,
     dragModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {
@@ -536,6 +576,7 @@ fun RoadmapParentRow(
                 }
             }
 
+            // Properly managing buttons in a compact row layout
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (hasChildren) {
                     IconButton(onClick = onToggleExpand, modifier = Modifier.size(32.dp)) {
@@ -549,8 +590,8 @@ fun RoadmapParentRow(
                 IconButton(onClick = { onEdit(item) }, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
-                IconButton(onClick = onAddSubGoal, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Sub-goal", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                IconButton(onClick = onAddSubtask, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Subtask", modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 }
                 Icon(
                     imageVector = Icons.Default.DragIndicator,
@@ -564,13 +605,13 @@ fun RoadmapParentRow(
 }
 
 @Composable
-fun RoadmapChildRow(
-    item: RoadmapItem,
+private fun TopicChecklistChildRow(
+    item: TopicChecklistItem,
     elevation: Dp,
-    isLastChild: Boolean = false,
-    onToggle: (RoadmapItem) -> Unit,
-    onEdit: (RoadmapItem) -> Unit,
-    onDelete: (RoadmapItem) -> Unit,
+    isLastChild: Boolean,
+    onToggle: (TopicChecklistItem) -> Unit,
+    onEdit: (TopicChecklistItem) -> Unit,
+    onDelete: (TopicChecklistItem) -> Unit,
     dragModifier: Modifier = Modifier,
     modifier: Modifier = Modifier
 ) {

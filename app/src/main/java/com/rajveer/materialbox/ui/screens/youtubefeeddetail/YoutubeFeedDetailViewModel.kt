@@ -129,7 +129,14 @@ class YoutubeFeedDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isRefreshing = true, error = null) }
             feedSyncManager.forceSync(feedId)
-            // The UI will auto-update via the Room Flow observer in observeVideosWithWatchedState()
+            
+            val isLimited = YoutubeRssFetcher.isCurrentlyRateLimited()
+            _uiState.update { state ->
+                state.copy(
+                    isRefreshing = false,
+                    error = if (isLimited) "YouTube is rate-limiting requests. Please try again in a few minutes." else null
+                )
+            }
         }
     }
 

@@ -45,9 +45,9 @@ class FeedSyncManager @Inject constructor(
     // Own background scope - lives for the process lifetime
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Guards activeJobs set to avoid race conditions from concurrent calls
+    // Guards activeJobs map to avoid race conditions from concurrent calls
     private val mutex = Mutex()
-    private val activeJobs = mutableSetOf<Long>()
+    private val activeJobs = mutableMapOf<Long, Job>()
 
     /**
      * Kicks off a background refresh for ALL feeds in the DB, one by one.
@@ -63,7 +63,10 @@ class FeedSyncManager @Inject constructor(
                 }
                 Log.d(TAG, "Starting background sync for ${feeds.size} feed(s).")
                 feeds.forEach { feed ->
-                    syncFeedInternal(feed.id, feed.channelUrls, "syncAll")
+                    // Launch each feed sync in its own coroutine so they can be tracked/joined individually
+                    launch {
+                        syncFeedInternal(feed.id, feed.channelUrls, "syncAll")
+                    }
                     // Be polite between feeds to avoid bursting the network
                     delay(INTER_FEED_DELAY_MS)
                 }
@@ -96,9 +99,12 @@ class FeedSyncManager @Inject constructor(
     /**
      * Force-syncs a single feed, bypassing the staleness check.
      * Used for manual pull-to-refresh so the user always gets fresh data.
+     * Now suspendable so callers can wait for completion.
      */
-    fun forceSync(feedId: Long) {
-        scope.launch {
+    suspend fun forceSync(feedId: Long) {
+        // We launch in the manager's scope to ensure the sync finishes even if the
+        // caller's scope (like a ViewModel) is cancelled, but we join it to wait.
+        val job = scope.launch {
             try {
                 val feed = feedRepository.getYoutubeFeedById(feedId).first()
                 if (feed == null) {
@@ -110,12 +116,13 @@ class FeedSyncManager @Inject constructor(
                 Log.e(TAG, "forceSync($feedId) outer error", e)
             }
         }
+        job.join()
     }
 
     /**
      * Core refresh logic for a single feed.
      * - Checks staleness first; skips if fresh.
-     * - Deduplicates via activeJobs set.
+     * - Deduplicates via activeJobs map (joins existing job if present).
      * - Fetches RSS channels and writes to Room cache.
      */
     private suspend fun syncFeedInternal(
@@ -129,11 +136,24 @@ class FeedSyncManager @Inject constructor(
             return
         }
 
-        // Skip if a job for this feed is already running
-        val alreadyRunning = mutex.withLock { !activeJobs.add(feedId) }
-        if (alreadyRunning) {
-            Log.d(TAG, "[$source] Feed $feedId already syncing, skipping duplicate.")
-            return
+        // 1. Join existing job if one is already running for this feed
+        val existingJob = mutex.withLock { activeJobs[feedId] }
+        if (existingJob != null && existingJob.isActive) {
+            Log.d(TAG, "[$source] Feed $feedId already syncing, joining existing job...")
+            existingJob.join()
+
+            // 2. After joining, check if the data is now fresh.
+            // If it is, and we aren't forcing a fresh sync, we can return.
+            if (!forceFresh && isFresh(feedId)) {
+                Log.d(TAG, "[$source] Feed $feedId is now fresh after waiting, skipping.")
+                return
+            }
+        }
+
+        // 3. Register our current coroutine job as the active job for this feed
+        val myJob = kotlin.coroutines.coroutineContext[Job]
+        if (myJob != null) {
+            mutex.withLock { activeJobs[feedId] = myJob }
         }
 
         try {
@@ -171,7 +191,12 @@ class FeedSyncManager @Inject constructor(
             // Per-feed error: log and move on; do NOT rethrow so other feeds are unaffected
             Log.e(TAG, "[$source] Feed $feedId sync error", e)
         } finally {
-            mutex.withLock { activeJobs.remove(feedId) }
+            // 4. Clean up: only remove from activeJobs if we are still the registered job
+            mutex.withLock {
+                if (activeJobs[feedId] === myJob) {
+                    activeJobs.remove(feedId)
+                }
+            }
         }
     }
 

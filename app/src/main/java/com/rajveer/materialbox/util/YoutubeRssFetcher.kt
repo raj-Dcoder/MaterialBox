@@ -23,21 +23,32 @@ object YoutubeRssFetcher {
             "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
     /** Max RSS retry attempts for transient HTTP failures */
-    private const val MAX_RSS_RETRIES = 3
+    private const val MAX_RSS_RETRIES = 2
     private const val INITIAL_RETRY_DELAY_MS = 1000L
+
+    /** In-memory cache to avoid re-resolving handles (@mkbhd) in the same session */
+    private val resolvedUrlCache = Collections.synchronizedMap(mutableMapOf<String, String>())
+
+    /** Flag to track if we've hit a 429 rate limit recently to bail out early */
+    @Volatile
+    private var isRateLimited = false
+    private var rateLimitResetTime = 0L
+    private const val RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000L // 5 minutes
 
     /**
      * Fetches videos from ALL given channel/playlist URLs.
-     *
-     * Every channel's full RSS output (~15 videos) is kept — no per-channel or
-     * global caps — so the caller gets the complete picture and can decide how
-     * many to display or cache.
      */
     suspend fun fetchVideosFromChannels(channelUrls: List<String>): List<YoutubeVideo> = withContext(Dispatchers.IO) {
         val allVideos = mutableListOf<YoutubeVideo>()
 
-        // Process in chunks of 5 to avoid rate limiting and connection pool exhaustion
-        channelUrls.chunked(5).forEach { chunk ->
+        // Check if we are currently rate limited
+        if (isRateLimited && System.currentTimeMillis() < rateLimitResetTime) {
+            Log.w(TAG, "Still in rate-limit cooldown, skipping network fetch.")
+            return@withContext emptyList()
+        }
+
+        // Process in chunks of 3 (reduced from 5 to be more polite)
+        channelUrls.chunked(3).forEach { chunk ->
             val deferredVideos = chunk.map { url ->
                 async {
                     try {
@@ -55,6 +66,9 @@ object YoutubeRssFetcher {
                 }
             }
             allVideos.addAll(deferredVideos.awaitAll().flatten())
+            
+            // If any fetch marked us as rate limited, stop processing this chunk
+            if (isRateLimited) return@forEach
         }
 
         allVideos
@@ -62,39 +76,51 @@ object YoutubeRssFetcher {
             .sortedByDescending { it.publishedAt }
     }
 
-    private fun buildRssUrl(url: String): String? {
+    private suspend fun buildRssUrl(url: String): String? {
         val trimmed = url.trim()
         if (trimmed.isEmpty()) return null
+
+        // 0. Check session cache first
+        resolvedUrlCache[trimmed]?.let { return it }
 
         // 1. Already a direct RSS feed URL
         if (trimmed.contains("feeds/videos.xml")) return trimmed
 
         // 2. Raw channel ID (e.g. "UCxxxxxx")
         if (trimmed.startsWith("UC") && !trimmed.contains("/")) {
-            return "https://www.youtube.com/feeds/videos.xml?channel_id=$trimmed"
+            val rss = "https://www.youtube.com/feeds/videos.xml?channel_id=$trimmed"
+            resolvedUrlCache[trimmed] = rss
+            return rss
         }
 
         // 3. @handle shorthand (e.g. "@mkbhd")
         if (trimmed.startsWith("@")) {
-            return resolvePageToRssUrl("https://www.youtube.com/$trimmed")
+            val rss = resolvePageToRssUrl("https://www.youtube.com/$trimmed")
+            if (rss != null) resolvedUrlCache[trimmed] = rss
+            return rss
         }
 
-        // 4. /channel/UCxxx path — check BEFORE playlist so that
-        //    "/channel/UCxxx?list=WL" doesn't incorrectly match as a playlist
+        // 4. /channel/UCxxx path
         val channelId = extractChannelId(trimmed)
         if (channelId != null) {
-            return "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+            val rss = "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+            resolvedUrlCache[trimmed] = rss
+            return rss
         }
 
         // 5. Playlist URL (e.g. /playlist?list=PLxxx)
         val playlistId = extractPlaylistId(trimmed)
         if (playlistId != null) {
-            return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+            val rss = "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
+            resolvedUrlCache[trimmed] = rss
+            return rss
         }
 
         // 6. Any other YouTube URL — resolve by fetching the page HTML
         if (trimmed.contains("youtube.com/") || trimmed.contains("youtu.be/")) {
-            return resolvePageToRssUrl(trimmed)
+            val rss = resolvePageToRssUrl(trimmed)
+            if (rss != null) resolvedUrlCache[trimmed] = rss
+            return rss
         }
 
         return null
@@ -118,8 +144,11 @@ object YoutubeRssFetcher {
         }?.takeIf { it.startsWith("UC") }
     }
 
-    private fun resolvePageToRssUrl(url: String): String? {
-        // Try up to 2 times — YouTube can occasionally return incomplete pages
+    private suspend fun resolvePageToRssUrl(url: String): String? {
+        // If we hit a rate limit, don't even try to scrape HTML
+        if (isRateLimited && System.currentTimeMillis() < rateLimitResetTime) return null
+
+        // Try up to 2 times
         repeat(2) { attempt ->
             val content = fetchPageContent(url)
             if (content != null) {
@@ -129,13 +158,9 @@ object YoutubeRssFetcher {
                 extractPlaylistIdFromHtml(content)?.let { playlistId ->
                     return "https://www.youtube.com/feeds/videos.xml?playlist_id=$playlistId"
                 }
-                Log.w(TAG, "Attempt ${attempt + 1}: No RSS ID found in page for $url")
-            } else {
-                Log.w(TAG, "Attempt ${attempt + 1}: Failed to fetch page for $url")
             }
-            if (attempt == 0) Thread.sleep(1000) // brief pause before retry
+            if (attempt == 0 && !isRateLimited) delay(500) // reduced delay
         }
-        Log.e(TAG, "No RSS-compatible channel or playlist ID found for $url after retries")
         return null
     }
 
@@ -145,14 +170,18 @@ object YoutubeRssFetcher {
             val connection = URL(fullUrl).openConnection() as HttpURLConnection
             connection.instanceFollowRedirects = true
             connection.requestMethod = "GET"
-            connection.connectTimeout = 8000
-            connection.readTimeout = 8000
-            connection.useCaches = false
+            connection.connectTimeout = 5000 // reduced timeout
+            connection.readTimeout = 5000    // reduced timeout
+            connection.useCaches = true      // allow some caching
             connection.setRequestProperty("User-Agent", USER_AGENT)
-            connection.setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+            
             val responseCode = connection.responseCode
+            if (responseCode == 429) {
+                Log.e(TAG, "HIT RATE LIMIT (429) on $fullUrl")
+                markRateLimited()
+                return null
+            }
             if (responseCode != HttpURLConnection.HTTP_OK) {
-                Log.w(TAG, "Page fetch for $fullUrl returned HTTP $responseCode")
                 return null
             }
             connection.inputStream.bufferedReader().use { it.readText() }
@@ -160,6 +189,16 @@ object YoutubeRssFetcher {
             Log.e(TAG, "Error resolving page $fullUrl", e)
             null
         }
+    }
+
+    private fun markRateLimited() {
+        isRateLimited = true
+        rateLimitResetTime = System.currentTimeMillis() + RATE_LIMIT_COOLDOWN_MS
+    }
+
+    /** Returns true if we are currently in a rate-limit cooldown period */
+    fun isCurrentlyRateLimited(): Boolean {
+        return isRateLimited && System.currentTimeMillis() < rateLimitResetTime
     }
 
     private fun extractChannelIdFromHtml(content: String): String? {

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.rajveer.materialbox.ui.screens.home.EmptyStateCard
 import com.rajveer.materialbox.util.HapticUtils
 import com.rajveer.materialbox.util.toRelativeTimeString
@@ -224,34 +225,61 @@ fun YoutubeFeedDetailScreen(
                         }
 
                         itemsIndexed(editedChannels) { index, url ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedTextField(
-                                    value = url,
-                                    onValueChange = { newUrl ->
-                                        val list = editedChannels.toMutableList()
-                                        list[index] = newUrl
-                                        editedChannels = list
-                                    },
-                                    label = { Text("Channel URL") },
-                                    placeholder = { Text("https://www.youtube.com/@channel") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    singleLine = true
-                                )
-                                if (editedChannels.size > 1) {
-                                    IconButton(onClick = {
-                                        val list = editedChannels.toMutableList()
-                                        list.removeAt(index)
-                                        editedChannels = list
-                                    }) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Remove channel",
-                                            tint = MaterialTheme.colorScheme.error
+                            // Auto-trigger resolution for existing and new URLs
+                            LaunchedEffect(url) {
+                                if (url.isNotBlank()) {
+                                    viewModel.resolveChannelName(url)
+                                }
+                            }
+
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = url,
+                                        onValueChange = { newUrl ->
+                                            val list = editedChannels.toMutableList()
+                                            list[index] = newUrl
+                                            editedChannels = list
+                                        },
+                                        label = { Text("Channel URL") },
+                                        placeholder = { Text("https://www.youtube.com/@channel") },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        singleLine = true
+                                    )
+                                    if (editedChannels.size > 1) {
+                                        IconButton(onClick = {
+                                            val list = editedChannels.toMutableList()
+                                            list.removeAt(index)
+                                            editedChannels = list
+                                        }) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Remove channel",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
+
+                                val nameResolved = uiState.channelNames[url]
+                                if (nameResolved != null) {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                        shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp)
+                                            .fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = nameResolved,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                         )
                                     }
                                 }
@@ -311,8 +339,13 @@ fun YoutubeVideoCard(video: YoutubeVideo, onClick: () -> Unit) {
         Column {
             // ── Thumbnail with watched progress bar overlay (Option D) ──
             Box {
+                val context = LocalContext.current
                 AsyncImage(
-                    model = video.thumbnailUrl,
+                    model = ImageRequest.Builder(context)
+                        .data(video.thumbnailUrl)
+                        .crossfade(true)
+                        .allowHardware(true)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()

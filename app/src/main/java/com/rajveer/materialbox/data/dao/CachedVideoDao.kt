@@ -49,4 +49,12 @@ interface CachedVideoDao {
 
     @Query("DELETE FROM cached_videos WHERE feedId = :feedId")
     suspend fun deleteByFeedId(feedId: Long)
+
+    @Query("SELECT DISTINCT sourceUrl, channelName FROM cached_videos WHERE feedId = :feedId")
+    suspend fun getChannelNamesMapping(feedId: Long): List<ChannelNamePair>
 }
+
+data class ChannelNamePair(
+    val sourceUrl: String,
+    val channelName: String
+)

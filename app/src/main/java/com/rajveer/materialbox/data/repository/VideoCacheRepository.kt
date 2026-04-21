@@ -27,4 +27,7 @@ class VideoCacheRepository @Inject constructor(
 
     suspend fun clearCache(feedId: Long) =
         cachedVideoDao.deleteByFeedId(feedId)
+
+    suspend fun getChannelNamesMapping(feedId: Long) =
+        cachedVideoDao.getChannelNamesMapping(feedId)
 }

@@ -22,6 +22,7 @@ data class YoutubeVideo(
     val thumbnailUrl: String,
     val publishedAt: Date,
     val channelName: String,
+    val sourceUrl: String,
     val isWatched: Boolean = false
 )
 
@@ -31,6 +32,7 @@ data class YoutubeFeedUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val lastCachedAt: Date? = null,
+    val channelNames: Map<String, String> = emptyMap(),
     val error: String? = null
 )
 
@@ -52,6 +54,28 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     init {
         observeFeed()
         observeVideosWithWatchedState()
+        loadChannelNamesFromCache()
+    }
+
+    private fun loadChannelNamesFromCache() {
+        viewModelScope.launch {
+            val mapping = videoCacheRepository.getChannelNamesMapping(feedId)
+            _uiState.update { state ->
+                state.copy(channelNames = mapping.associate { it.sourceUrl to it.channelName })
+            }
+        }
+    }
+
+    fun resolveChannelName(url: String) {
+        if (url.isBlank() || _uiState.value.channelNames.containsKey(url)) return
+        viewModelScope.launch {
+            val name = YoutubeRssFetcher.fetchChannelName(url)
+            if (name != null) {
+                _uiState.update { state ->
+                    state.copy(channelNames = state.channelNames + (url to name))
+                }
+            }
+        }
     }
 
     private fun observeFeed() {
@@ -139,6 +163,7 @@ class YoutubeFeedDetailViewModel @Inject constructor(
                         thumbnailUrl = v.thumbnailUrl,
                         publishedAt = v.publishedAt,
                         channelName = v.channelName,
+                        sourceUrl = v.sourceUrl,
                         cachedAt = now
                     )
                 }
@@ -178,9 +203,10 @@ class YoutubeFeedDetailViewModel @Inject constructor(
     private fun CachedVideo.toUiModel(watchedUrls: Set<String>) = YoutubeVideo(
         title = title,
         videoUrl = videoUrl,
-        thumbnailUrl = thumbnailUrl,
+        thumbnailUrl = YoutubeRssFetcher.upgradeToHighQualityThumbnail(thumbnailUrl),
         publishedAt = publishedAt,
         channelName = channelName,
+        sourceUrl = sourceUrl,
         isWatched = videoUrl in watchedUrls
     )
 }

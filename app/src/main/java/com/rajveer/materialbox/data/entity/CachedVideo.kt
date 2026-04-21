@@ -30,5 +30,6 @@ data class CachedVideo(
     val thumbnailUrl: String,
     val publishedAt: Date,
     val channelName: String,
+    val sourceUrl: String,      // URL of the channel/playlist this video came from
     val cachedAt: Date = Date()    // when this batch was fetched — used to show "last updated X ago"
 )

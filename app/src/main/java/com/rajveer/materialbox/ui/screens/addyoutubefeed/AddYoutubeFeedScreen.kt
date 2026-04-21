@@ -26,7 +26,17 @@ fun AddYoutubeFeedScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var channelUrls by remember { mutableStateOf(mutableListOf("")) }
+    val channelNames by viewModel.channelNames.collectAsState()
     val context = LocalContext.current
+
+    // Observe changes to channelUrls to trigger resolution
+    LaunchedEffect(channelUrls) {
+        channelUrls.forEach { url ->
+            if (url.isNotBlank()) {
+                viewModel.resolveChannelName(url)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,29 +97,49 @@ fun AddYoutubeFeedScreen(
             }
 
             itemsIndexed(channelUrls) { index, url ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = url,
-                        onValueChange = { newUrl ->
-                            val newList = channelUrls.toMutableList()
-                            newList[index] = newUrl
-                            channelUrls = newList
-                        },
-                        label = { Text("Channel or Playlist URL") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        placeholder = { Text("Channel or playlist link") }
-                    )
-                    if (channelUrls.size > 1) {
-                        IconButton(onClick = {
-                            val newList = channelUrls.toMutableList()
-                            newList.removeAt(index)
-                            channelUrls = newList
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Remove")
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = url,
+                            onValueChange = { newUrl ->
+                                val newList = channelUrls.toMutableList()
+                                newList[index] = newUrl
+                                channelUrls = newList
+                            },
+                            label = { Text("Channel or Playlist URL") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            placeholder = { Text("Channel or playlist link") }
+                        )
+                        if (channelUrls.size > 1) {
+                            IconButton(onClick = {
+                                val newList = channelUrls.toMutableList()
+                                newList.removeAt(index)
+                                channelUrls = newList
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Remove")
+                            }
+                        }
+                    }
+                    
+                    val nameResolved = channelNames[url]
+                    if (nameResolved != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp)
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = nameResolved,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
                     }
                 }

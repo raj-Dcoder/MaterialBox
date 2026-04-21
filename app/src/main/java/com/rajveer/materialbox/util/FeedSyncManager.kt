@@ -161,6 +161,7 @@ class FeedSyncManager @Inject constructor(
                     thumbnailUrl = v.thumbnailUrl,
                     publishedAt = v.publishedAt,
                     channelName = v.channelName,
+                    sourceUrl = v.sourceUrl,
                     cachedAt = now
                 )
             }

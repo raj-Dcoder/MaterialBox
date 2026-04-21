@@ -198,7 +198,7 @@ object YoutubeRssFetcher {
 
         repeat(MAX_RSS_RETRIES) { attempt ->
             try {
-                val videos = fetchRssFeed(rssUrl)
+                val videos = fetchRssFeed(rssUrl, sourceUrl)
                 if (videos.isNotEmpty() || attempt == MAX_RSS_RETRIES - 1) {
                     if (attempt > 0) {
                         Log.d(TAG, "RSS fetch succeeded on attempt ${attempt + 1} for $sourceUrl")
@@ -222,7 +222,7 @@ object YoutubeRssFetcher {
         return emptyList()
     }
 
-    private fun fetchRssFeed(rssUrl: String): List<YoutubeVideo> {
+    private fun fetchRssFeed(rssUrl: String, sourceUrl: String): List<YoutubeVideo> {
         val videos = mutableListOf<YoutubeVideo>()
         var connection: HttpURLConnection? = null
         try {
@@ -271,7 +271,7 @@ object YoutubeRssFetcher {
                                     currentVideo.title = text
                                 }
                             }
-                            "entry" -> currentVideo = MutableYoutubeVideo(channelName = feedTitle)
+                            "entry" -> currentVideo = MutableYoutubeVideo(channelName = feedTitle, sourceUrl = sourceUrl)
                             "link" -> {
                                 val href = parser.getAttributeValue(null, "href")
                                 if (currentVideo != null && href != null && href.contains("watch")) {
@@ -295,7 +295,7 @@ object YoutubeRssFetcher {
                                 // Handles both <media:thumbnail> (namespace-aware) and plain <thumbnail>
                                 val url = parser.getAttributeValue(null, "url")
                                 if (currentVideo != null && url != null) {
-                                    currentVideo.thumbnailUrl = url
+                                    currentVideo.thumbnailUrl = upgradeToHighQualityThumbnail(url)
                                 }
                             }
                         }
@@ -343,18 +343,37 @@ object YoutubeRssFetcher {
     }
 
     /**
-     * Constructs a fallback HQ thumbnail URL from a YouTube watch URL.
-     * e.g. "https://www.youtube.com/watch?v=dQw4w9WgXcQ" → "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+     * Constructs a high-quality thumbnail URL from a YouTube watch URL.
+     * e.g. "https://www.youtube.com/watch?v=dQw4w9WgXcQ" → "https://i.ytimg.com/vi/dQw4w9WgXcQ/sddefault.jpg"
      */
     private fun buildFallbackThumbnail(videoUrl: String): String? {
         return try {
             val uri = android.net.Uri.parse(videoUrl)
             val videoId = uri.getQueryParameter("v")
             if (!videoId.isNullOrBlank()) {
-                "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                "https://i.ytimg.com/vi/$videoId/sddefault.jpg"
             } else null
         } catch (e: Exception) {
             null
+        }
+    }
+
+    /**
+     * Upgrades any ytimg.com thumbnail URL to the highest universally-available
+     * quality (sddefault.jpg — 640×480). Works for RSS-provided URLs like:
+     *   https://i1.ytimg.com/vi/VIDEO_ID/hqdefault.jpg
+     *   https://i.ytimg.com/vi/VIDEO_ID/default.jpg
+     *
+     * If the URL doesn't match the expected pattern, it is returned unchanged.
+     */
+    fun upgradeToHighQualityThumbnail(url: String): String {
+        // Pattern: https://i[N].ytimg.com/vi/VIDEO_ID/<quality>.jpg
+        val regex = Regex("""(https?://i\d*\.ytimg\.com/vi/[^/]+/)(?:default|mqdefault|hqdefault|sddefault|maxresdefault)\.jpg""")
+        val match = regex.find(url)
+        return if (match != null) {
+            "${match.groupValues[1]}sddefault.jpg"
+        } else {
+            url
         }
     }
 
@@ -363,13 +382,51 @@ object YoutubeRssFetcher {
         var videoUrl: String? = null,
         var thumbnailUrl: String? = null,
         var publishedAt: Date? = null,
-        var channelName: String = ""
+        var channelName: String = "",
+        var sourceUrl: String = ""
     ) {
         fun toYoutubeVideo(): YoutubeVideo? {
             return if (title != null && videoUrl != null && thumbnailUrl != null && publishedAt != null) {
-                YoutubeVideo(title!!, videoUrl!!, thumbnailUrl!!, publishedAt!!, channelName)
+                YoutubeVideo(title!!, videoUrl!!, thumbnailUrl!!, publishedAt!!, channelName, sourceUrl)
             } else null
         }
+    }
+
+    suspend fun fetchChannelName(url: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val rssUrl = buildRssUrl(url) ?: return@withContext null
+            
+            // We only need the feed title, so we can stop parsing after <title> is found
+            var connection: HttpURLConnection? = null
+            try {
+                connection = URL(rssUrl).openConnection() as HttpURLConnection
+                connection.instanceFollowRedirects = true
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 8000
+                connection.readTimeout = 8000
+                connection.setRequestProperty("User-Agent", USER_AGENT)
+                
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+                
+                val parser = Xml.newPullParser()
+                parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+                parser.setInput(connection.inputStream, null)
+                
+                var eventType = parser.eventType
+                while (eventType != XmlPullParser.END_DOCUMENT) {
+                    if (eventType == XmlPullParser.START_TAG && parser.name == "title") {
+                        val title = readTextSafe(parser)
+                        if (title.isNotBlank()) return@withContext title
+                    }
+                    eventType = parser.next()
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching channel name for $url", e)
+        }
+        null
     }
 
     private fun parseDateSafe(dateStr: String): Date {

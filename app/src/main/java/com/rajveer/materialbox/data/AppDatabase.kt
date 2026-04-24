@@ -35,7 +35,7 @@ import com.rajveer.materialbox.data.entity.YoutubeFeed
         YoutubeFeed::class, CachedVideo::class, WatchedVideo::class,
         RoadmapItem::class, SubjectStreak::class, TopicChecklistItem::class
     ],
-    version = 9,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -53,6 +53,48 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        private const val DATABASE_NAME = "materialbox_database"
+
+        private fun createMissingForeignKeyIndices(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_topics_subjectId ON topics(subjectId)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_feeds_subjectId ON youtube_feeds(subjectId)")
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                createMissingForeignKeyIndices(db)
+            }
+        }
+
+        val MIGRATION_9_11 = object : Migration(9, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_9_10.migrate(db)
+                MIGRATION_10_11.migrate(db)
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Recover from previously released schemas that could miss these FK indices.
+                createMissingForeignKeyIndices(db)
+            }
+        }
+
+        val MIGRATION_10_12 = object : Migration(10, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_10_11.migrate(db)
+                MIGRATION_11_12.migrate(db)
+            }
+        }
+
+        val MIGRATION_9_12 = object : Migration(9, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_9_10.migrate(db)
+                MIGRATION_10_11.migrate(db)
+                MIGRATION_11_12.migrate(db)
+            }
+        }
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -73,6 +115,7 @@ abstract class AppDatabase : RoomDatabase() {
                         FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE
                     )
                 """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_youtube_feeds_subjectId ON youtube_feeds(subjectId)")
             }
         }
 
@@ -200,19 +243,62 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // 1. Create the new table with updated schema
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS materials_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        topicId INTEGER,
+                        subjectId INTEGER,
+                        type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        pathOrUrl TEXT NOT NULL,
+                        originalFileUri TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        viewCount INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(topicId) REFERENCES topics(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                        FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                """.trimIndent())
+
+                // 2. Copy data from the old table to the new table
+                db.execSQL("""
+                    INSERT INTO materials_new (id, topicId, type, title, pathOrUrl, originalFileUri, createdAt, updatedAt, viewCount)
+                    SELECT id, topicId, type, title, pathOrUrl, originalFileUri, createdAt, updatedAt, viewCount FROM materials
+                """.trimIndent())
+
+                // 3. Drop the old table
+                db.execSQL("DROP TABLE materials")
+
+                // 4. Rename the new table to the original table name
+                db.execSQL("ALTER TABLE materials_new RENAME TO materials")
+
+                // 5. Recreate indices
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_materials_topicId ON materials(topicId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_materials_subjectId ON materials(subjectId)")
+            }
+        }
+
+        private fun buildDatabase(context: Context): AppDatabase {
+            return Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                DATABASE_NAME
+            )
+                .addMigrations(
+                    MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
+                    MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+                    MIGRATION_8_9, MIGRATION_9_10, MIGRATION_9_11,
+                    MIGRATION_10_11, MIGRATION_9_12, MIGRATION_10_12, MIGRATION_11_12
+                )
+                .build()
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
-                    context.applicationContext,
-                    AppDatabase::class.java,
-                    "materialbox_database"
-                )
-                    .addMigrations(
-                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
-                        MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
-                        MIGRATION_8_9
-                    )
-                    .build()
+                val instance = buildDatabase(context)
                 INSTANCE = instance
                 instance
             }

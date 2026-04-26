@@ -12,9 +12,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.rajveer.materialbox.ui.screens.addmaterial.AddMaterialScreen
+import com.rajveer.materialbox.ui.screens.addmaterial.AddMaterialSubjectScreen
 import com.rajveer.materialbox.ui.screens.addsubject.AddSubjectScreen
 import com.rajveer.materialbox.ui.screens.addtopic.AddTopicScreen
 import com.rajveer.materialbox.ui.screens.addyoutubefeed.AddYoutubeFeedScreen
+import com.rajveer.materialbox.ui.screens.dayplan.DayPlanScreen
 import com.rajveer.materialbox.ui.screens.home.HomeScreen
 import com.rajveer.materialbox.ui.screens.materialdetail.MaterialDetailScreen
 import com.rajveer.materialbox.ui.screens.roadmap.RoadmapScreen
@@ -56,6 +58,10 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Screen.Home.route) {
             HomeScreen(navController)
+        }
+
+        composable(Screen.DayPlan.route) {
+            DayPlanScreen(navController = navController)
         }
 
         composable(
@@ -154,6 +160,22 @@ fun NavGraph(navController: NavHostController) {
         ) { 
             YoutubeFeedDetailScreen(
                 navController = navController
+            )
+        }
+
+        composable(
+            route = Screen.AddMaterialSubject.route,
+            arguments = listOf(
+                navArgument("subjectId") { type = NavType.LongType },
+                navArgument("materialType") { type = NavType.StringType; nullable = true },
+                navArgument("filePath") { type = NavType.StringType; nullable = true }
+            )
+        ) { backStackEntry ->
+            val subjectId = backStackEntry.arguments?.getLong("subjectId") ?: return@composable
+            val materialType = backStackEntry.arguments?.getString("materialType")
+            AddMaterialSubjectScreen(
+                navController = navController,
+                materialType = materialType
             )
         }
     }

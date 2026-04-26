@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.DailyTaskRepository
 import com.rajveer.materialbox.data.repository.RoadmapRepository
 import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
@@ -20,10 +21,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
+import com.rajveer.materialbox.util.todayDayKey
+import com.rajveer.materialbox.util.update.AppUpdateManager
+import com.rajveer.materialbox.util.update.AppUpdateUiState
+
+data class HomeDayPlanSummary(
+    val completed: Int = 0,
+    val total: Int = 0,
+    val nextTaskTitle: String? = null
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -32,16 +43,20 @@ class HomeViewModel @Inject constructor(
     private val topicRepository: TopicRepository,
     private val streakRepository: StreakRepository,
     private val roadmapRepository: RoadmapRepository,
+    private val dailyTaskRepository: DailyTaskRepository,
+    private val appUpdateManager: AppUpdateManager,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _viewMode = MutableStateFlow(ViewMode.RECENTLY_ADDED)
     val viewMode: StateFlow<ViewMode> = _viewMode
+    val appUpdateState: StateFlow<AppUpdateUiState> = appUpdateManager.uiState
 
     init {
         viewModelScope.launch {
             cleanOrphanedFiles()
         }
+        appUpdateManager.checkForUpdates()
     }
 
     private suspend fun cleanOrphanedFiles() {
@@ -96,6 +111,17 @@ class HomeViewModel @Inject constructor(
 
     val materialCount: StateFlow<Int> = materialRepository.getTotalMaterialCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val dayPlanSummary: StateFlow<HomeDayPlanSummary> = dailyTaskRepository
+        .getTasksForDate(todayDayKey())
+        .map { tasks ->
+            HomeDayPlanSummary(
+                completed = tasks.count { it.isCompleted },
+                total = tasks.size,
+                nextTaskTitle = tasks.firstOrNull { !it.isCompleted }?.title
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), HomeDayPlanSummary())
 
     fun getGreeting(): String {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -153,6 +179,18 @@ class HomeViewModel @Inject constructor(
                 android.widget.Toast.makeText(context, "Import failed", android.widget.Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    fun installUpdate() {
+        appUpdateManager.installUpdate()
+    }
+
+    fun retryUpdateDownload() {
+        appUpdateManager.retryDownload()
+    }
+
+    fun openUpdateReleasePage() {
+        appUpdateManager.openReleasePage()
     }
 
     fun getTopicCountForSubject(subjectId: Long): Flow<Int> =

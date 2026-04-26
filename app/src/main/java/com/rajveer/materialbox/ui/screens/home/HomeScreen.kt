@@ -22,9 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.EventNote
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.AlertDialog
@@ -38,6 +41,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -81,9 +85,11 @@ import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.navigation.Screen
 import com.rajveer.materialbox.ui.components.ActionMenuBottomSheet
 import com.rajveer.materialbox.ui.components.SubjectCard
+import com.rajveer.materialbox.ui.components.UpdateStatusCard
 import com.rajveer.materialbox.ui.components.accentColor
 import com.rajveer.materialbox.ui.components.icon
 import com.rajveer.materialbox.util.toRelativeTimeString
+import com.rajveer.materialbox.util.update.AppUpdateUiState
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -97,6 +103,8 @@ fun HomeScreen(
     val viewMode by viewModel.viewMode.collectAsState()
     val topicCount by viewModel.topicCount.collectAsState()
     val materialCount by viewModel.materialCount.collectAsState()
+    val dayPlanSummary by viewModel.dayPlanSummary.collectAsState()
+    val appUpdateState by viewModel.appUpdateState.collectAsState()
     var selectedActionSubject by remember { mutableStateOf<Subject?>(null) }
     var showEditSubjectDialog by remember { mutableStateOf<Subject?>(null) }
     var showDeleteSubjectDialog by remember { mutableStateOf<Subject?>(null) }
@@ -283,6 +291,31 @@ fun HomeScreen(
                 }
             }
 
+            item {
+                TodayPlanCard(
+                    completed = dayPlanSummary.completed,
+                    total = dayPlanSummary.total,
+                    nextTaskTitle = dayPlanSummary.nextTaskTitle,
+                    onClick = {
+                        HapticUtils.playClick(context)
+                        navController.navigate(Screen.DayPlan.route)
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            if (appUpdateState !is AppUpdateUiState.Hidden && appUpdateState !is AppUpdateUiState.Checking) {
+                item {
+                    UpdateStatusCard(
+                        state = appUpdateState,
+                        onInstallClick = viewModel::installUpdate,
+                        onRetryDownloadClick = viewModel::retryUpdateDownload,
+                        onOpenReleasePageClick = viewModel::openUpdateReleasePage,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            }
+
             // ============================================================
             // FILTER CHIPS — Recent / Most Viewed
             // ============================================================
@@ -457,6 +490,89 @@ fun HomeScreen(
                         Text("Cancel")
                     }
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun TodayPlanCard(
+    completed: Int,
+    total: Int,
+    nextTaskTitle: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val percent = if (total > 0) completed.toFloat() / total else 0f
+
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EventNote,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(10.dp).size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Today's Plan",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        text = if (total == 0) "Empty" else "$completed/$total",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { percent },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .clip(RoundedCornerShape(999.dp)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = nextTaskTitle?.let { "Next: $it" } ?: "Plan a few focused tasks for today",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,6 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,10 +66,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -94,7 +97,9 @@ fun TopicChecklistScreen(
     val items by viewModel.items.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var newItemText by remember { mutableStateOf("") }
+    var showAddItemDialog by remember { mutableStateOf(false) }
     var parentForSubtask by remember { mutableStateOf<TopicChecklistItem?>(null) }
     var itemToDelete by remember { mutableStateOf<TopicChecklistItem?>(null) }
     var itemToEdit by remember { mutableStateOf<TopicChecklistItem?>(null) }
@@ -137,42 +142,17 @@ fun TopicChecklistScreen(
                 )
             )
         },
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                shadowElevation = 16.dp
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    HapticUtils.playClick(context)
+                    newItemText = ""
+                    showAddItemDialog = true
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(WindowInsets.ime.asPaddingValues())
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = newItemText,
-                        onValueChange = { newItemText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Add a checklist item") },
-                        shape = RoundedCornerShape(24.dp),
-                        singleLine = true,
-                        trailingIcon = {
-                            if (newItemText.isNotBlank()) {
-                                IconButton(onClick = {
-                                    viewModel.addItem(newItemText)
-                                    newItemText = ""
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Add",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    )
-                }
+                Icon(Icons.Default.Add, contentDescription = "Add checklist item", tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     ) { padding ->
@@ -286,6 +266,49 @@ fun TopicChecklistScreen(
                     }
                 }
             }
+        }
+
+        if (showAddItemDialog) {
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+
+            AlertDialog(
+                onDismissRequest = { showAddItemDialog = false },
+                title = { Text("Add checklist item") },
+                text = {
+                    OutlinedTextField(
+                        value = newItemText,
+                        onValueChange = { newItemText = it },
+                        label = { Text("Item description") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (newItemText.isNotBlank()) {
+                                HapticUtils.playClick(context)
+                                viewModel.addItem(newItemText)
+                                newItemText = ""
+                                showAddItemDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Add")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAddItemDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         if (parentForSubtask != null) {
@@ -547,10 +570,7 @@ private fun TopicChecklistParentRow(
         border = if (!item.isCompleted && !hasChildren) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().combinedClickable(
-                onClick = { if (hasChildren) onToggleExpand() else onToggle(item) },
-                onLongClick = { onDelete(item) }
-            ).padding(vertical = 8.dp, horizontal = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -559,7 +579,14 @@ private fun TopicChecklistParentRow(
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = { if (hasChildren) onToggleExpand() else onToggle(item) },
+                        onLongClick = { onDelete(item) }
+                    )
+            ) {
                 Text(
                     text = item.text,
                     style = MaterialTheme.typography.bodyLarge.copy(

@@ -62,7 +62,11 @@ class TopicDetailViewModel @Inject constructor(
         viewModelScope.launch {
             uiState.value.topic?.let { topic ->
                 uiState.value.materials.forEach { material ->
-                    if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {
+                    if (material.type != MaterialType.NOTE &&
+                        material.type != MaterialType.LINK &&
+                        !material.pathOrUrl.startsWith("content://") &&
+                        !material.pathOrUrl.startsWith("http")
+                    ) {
                         val file = File(context.filesDir, material.pathOrUrl)
                         if (file.exists()) file.delete()
                     }
@@ -80,7 +84,11 @@ class TopicDetailViewModel @Inject constructor(
 
     fun deleteMaterial(material: Material) {
         viewModelScope.launch {
-            if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {
+            if (material.type != MaterialType.NOTE &&
+                material.type != MaterialType.LINK &&
+                !material.pathOrUrl.startsWith("content://") &&
+                !material.pathOrUrl.startsWith("http")
+            ) {
                 val file = File(context.filesDir, material.pathOrUrl)
                 if (file.exists()) file.delete()
             }

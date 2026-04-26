@@ -45,7 +45,11 @@ class MaterialDetailViewModel @Inject constructor(
     fun deleteMaterial() {
         viewModelScope.launch {
             _material.value?.let { material ->
-                if (!material.pathOrUrl.startsWith("content://") && !material.pathOrUrl.startsWith("http")) {
+                if (material.type != MaterialType.NOTE &&
+                    material.type != MaterialType.LINK &&
+                    !material.pathOrUrl.startsWith("content://") &&
+                    !material.pathOrUrl.startsWith("http")
+                ) {
                     val file = java.io.File(context.filesDir, material.pathOrUrl)
                     if (file.exists()) file.delete()
                 }

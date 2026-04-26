@@ -13,6 +13,9 @@ class MaterialRepository @Inject constructor(
     fun getMaterialsForTopic(topicId: Long): Flow<List<Material>> =
         materialDao.getMaterialsForTopic(topicId)
 
+    fun getMaterialsForSubject(subjectId: Long): Flow<List<Material>> =
+        materialDao.getMaterialsForSubject(subjectId)
+
     fun getMaterialById(id: Long): Flow<Material?> =
         materialDao.getMaterialById(id)
 
@@ -31,6 +34,9 @@ class MaterialRepository @Inject constructor(
     suspend fun findMaterialByUriOrTitle(topicId: Long, uri: String, title: String): Material? =
         materialDao.findMaterialByUriOrTitle(topicId, uri, title)
 
+    suspend fun findSubjectMaterialByUriOrTitle(subjectId: Long, uri: String, title: String): Material? =
+        materialDao.findSubjectMaterialByUriOrTitle(subjectId, uri, title)
+
     suspend fun insertMaterial(material: Material): Long =
         materialDao.insertMaterial(material)
 
@@ -48,6 +54,9 @@ class MaterialRepository @Inject constructor(
 
     fun getMaterialCountForTopic(topicId: Long): Flow<Int> =
         materialDao.getMaterialCountForTopic(topicId)
+
+    fun getMaterialCountForSubject(subjectId: Long): Flow<Int> =
+        materialDao.getMaterialCountForSubject(subjectId)
 
     suspend fun getLocalFilePathsForSubject(subjectId: Long): List<String> =
         materialDao.getLocalFilePathsForSubject(subjectId)

@@ -5,6 +5,7 @@ import android.net.Uri
 sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Home : Screen("home")
+    object DayPlan : Screen("day_plan")
     object AddSubject : Screen("add_subject")
     
     object SubjectDetail : Screen("subject/{subjectId}") {
@@ -30,6 +31,11 @@ sealed class Screen(val route: String) {
     object AddMaterial : Screen("add_material/{topicId}?materialType={materialType}&filePath={filePath}") {
         fun createRoute(topicId: Long) = "add_material/$topicId"
         fun createRoute(topicId: Long, materialType: String, filePath: String) = "add_material/$topicId?materialType=$materialType&filePath=${Uri.encode(filePath)}"
+    }
+
+    object AddMaterialSubject : Screen("add_material_subject/{subjectId}?materialType={materialType}&filePath={filePath}") {
+        fun createRoute(subjectId: Long) = "add_material_subject/$subjectId"
+        fun createRoute(subjectId: Long, materialType: String, filePath: String) = "add_material_subject/$subjectId?materialType=$materialType&filePath=${Uri.encode(filePath)}"
     }
     
     object MaterialDetail : Screen("material/{materialId}") {

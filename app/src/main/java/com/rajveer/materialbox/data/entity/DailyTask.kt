@@ -7,22 +7,29 @@ import androidx.room.PrimaryKey
 import java.util.Date
 
 @Entity(
-    tableName = "topics",
+    tableName = "daily_tasks",
     foreignKeys = [
         ForeignKey(
             entity = Subject::class,
             parentColumns = ["id"],
             childColumns = ["subjectId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.SET_NULL
         )
     ],
-    indices = [Index(value = ["subjectId"])]
+    indices = [
+        Index(value = ["plannedDate"]),
+        Index(value = ["subjectId"])
+    ]
 )
-data class Topic(
+data class DailyTask(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val subjectId: Long,
-    val name: String,
+    val title: String,
+    val plannedDate: String,
+    val isCompleted: Boolean = false,
+    val completedAt: Date? = null,
+    val position: Int = 0,
+    val subjectId: Long? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date()
-) 
+)

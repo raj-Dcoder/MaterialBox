@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.rajveer.materialbox.data.entity.MaterialType
+import com.rajveer.materialbox.ui.components.MarkdownText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,18 +128,17 @@ fun MaterialDetailScreen(
                             OutlinedTextField(
                                 value = editedContent,
                                 onValueChange = { editedContent = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Content") }
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 220.dp),
+                                label = { Text("Markdown content") }
                             )
                         } else {
                             Text(
                                 text = material?.title ?: "",
                                 style = MaterialTheme.typography.headlineMedium
                             )
-                            Text(
-                                text = material?.pathOrUrl ?: "",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            MarkdownText(markdown = material?.pathOrUrl.orEmpty())
                         }
                     }
                     else -> {

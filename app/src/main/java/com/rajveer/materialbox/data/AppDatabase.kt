@@ -11,6 +11,7 @@ import com.rajveer.materialbox.data.converter.DateConverter
 import com.rajveer.materialbox.data.converter.ListConverter
 import com.rajveer.materialbox.data.converter.MaterialTypeConverter
 import com.rajveer.materialbox.data.dao.CachedVideoDao
+import com.rajveer.materialbox.data.dao.DailyTaskDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.SubjectDao
 import com.rajveer.materialbox.data.dao.TopicDao
@@ -22,6 +23,7 @@ import com.rajveer.materialbox.data.dao.SubjectStreakDao
 import com.rajveer.materialbox.data.entity.RoadmapItem
 import com.rajveer.materialbox.data.entity.SubjectStreak
 import com.rajveer.materialbox.data.entity.CachedVideo
+import com.rajveer.materialbox.data.entity.DailyTask
 import com.rajveer.materialbox.data.entity.Material
 import com.rajveer.materialbox.data.entity.Subject
 import com.rajveer.materialbox.data.entity.Topic
@@ -33,9 +35,10 @@ import com.rajveer.materialbox.data.entity.YoutubeFeed
     entities = [
         Subject::class, Topic::class, Material::class,
         YoutubeFeed::class, CachedVideo::class, WatchedVideo::class,
-        RoadmapItem::class, SubjectStreak::class, TopicChecklistItem::class
+        RoadmapItem::class, SubjectStreak::class, TopicChecklistItem::class,
+        DailyTask::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(DateConverter::class, MaterialTypeConverter::class, ListConverter::class)
@@ -49,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun roadmapDao(): RoadmapDao
     abstract fun topicChecklistDao(): TopicChecklistDao
     abstract fun subjectStreakDao(): SubjectStreakDao
+    abstract fun dailyTaskDao(): DailyTaskDao
 
     companion object {
         @Volatile
@@ -78,6 +82,29 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 // Recover from previously released schemas that could miss these FK indices.
                 createMissingForeignKeyIndices(db)
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS daily_tasks (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        plannedDate TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL,
+                        completedAt INTEGER,
+                        position INTEGER NOT NULL,
+                        subjectId INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        FOREIGN KEY(subjectId) REFERENCES subjects(id) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_tasks_plannedDate ON daily_tasks(plannedDate)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_daily_tasks_subjectId ON daily_tasks(subjectId)")
             }
         }
 
@@ -291,7 +318,8 @@ abstract class AppDatabase : RoomDatabase() {
                     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4,
                     MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
                     MIGRATION_8_9, MIGRATION_9_10, MIGRATION_9_11,
-                    MIGRATION_10_11, MIGRATION_9_12, MIGRATION_10_12, MIGRATION_11_12
+                    MIGRATION_10_11, MIGRATION_9_12, MIGRATION_10_12, MIGRATION_11_12,
+                    MIGRATION_12_13
                 )
                 .build()
         }

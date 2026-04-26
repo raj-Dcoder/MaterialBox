@@ -14,7 +14,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import com.rajveer.materialbox.util.HapticUtils
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -22,9 +21,9 @@ import com.rajveer.materialbox.data.entity.MaterialType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddMaterialScreen(
+fun AddMaterialSubjectScreen(
     navController: NavController,
-    viewModel: AddMaterialViewModel = hiltViewModel(),
+    viewModel: AddMaterialSubjectViewModel = hiltViewModel(),
     materialType: String? = null
 ) {
     val title by viewModel.title.collectAsState()
@@ -55,11 +54,11 @@ fun AddMaterialScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { 
+                        onClick = {
                             HapticUtils.playHeavyClick(context)
-                            viewModel.saveMaterial { navController.navigateUp() } 
+                            viewModel.saveMaterial { navController.navigateUp() }
                         },
-                        enabled = title.isNotBlank() && !isLoading && 
+                        enabled = title.isNotBlank() && !isLoading &&
                                 (currentMaterialType != MaterialType.LINK || content.isNotBlank())
                     ) {
                         Icon(Icons.Default.Check, contentDescription = "Save")

@@ -1,9 +1,9 @@
 package com.rajveer.materialbox.di
 
 import android.content.Context
-import androidx.room.Room
 import com.rajveer.materialbox.data.AppDatabase
 import com.rajveer.materialbox.data.dao.CachedVideoDao
+import com.rajveer.materialbox.data.dao.DailyTaskDao
 import com.rajveer.materialbox.data.dao.MaterialDao
 import com.rajveer.materialbox.data.dao.RoadmapDao
 import com.rajveer.materialbox.data.dao.SubjectDao
@@ -13,6 +13,7 @@ import com.rajveer.materialbox.data.dao.TopicChecklistDao
 import com.rajveer.materialbox.data.dao.WatchedVideoDao
 import com.rajveer.materialbox.data.dao.YoutubeFeedDao
 import com.rajveer.materialbox.data.repository.MaterialRepository
+import com.rajveer.materialbox.data.repository.DailyTaskRepository
 import com.rajveer.materialbox.data.repository.RoadmapRepository
 import com.rajveer.materialbox.data.repository.StreakRepository
 import com.rajveer.materialbox.data.repository.SubjectRepository
@@ -36,22 +37,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "materialbox_database"
-        )
-        .addMigrations(
-            AppDatabase.MIGRATION_1_2,
-            AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4,
-            AppDatabase.MIGRATION_4_5,
-            AppDatabase.MIGRATION_5_6,
-            AppDatabase.MIGRATION_6_7,
-            AppDatabase.MIGRATION_7_8,
-            AppDatabase.MIGRATION_8_9
-        )
-        .build()
+        return AppDatabase.getDatabase(context)
     }
 
     @Provides @Singleton
@@ -82,6 +68,9 @@ object AppModule {
     fun provideSubjectStreakDao(db: AppDatabase): SubjectStreakDao = db.subjectStreakDao()
 
     @Provides @Singleton
+    fun provideDailyTaskDao(db: AppDatabase): DailyTaskDao = db.dailyTaskDao()
+
+    @Provides @Singleton
     fun provideSubjectRepository(dao: SubjectDao): SubjectRepository = SubjectRepository(dao)
 
     @Provides @Singleton
@@ -108,6 +97,9 @@ object AppModule {
 
     @Provides @Singleton
     fun provideStreakRepository(dao: SubjectStreakDao): StreakRepository = StreakRepository(dao)
+
+    @Provides @Singleton
+    fun provideDailyTaskRepository(dao: DailyTaskDao): DailyTaskRepository = DailyTaskRepository(dao)
 
     @Provides @Singleton
     fun provideFeedSyncManager(

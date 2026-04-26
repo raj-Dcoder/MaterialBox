@@ -21,6 +21,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.*
@@ -28,6 +30,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -237,7 +240,8 @@ fun TopicDetailScreen(
                         enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200)),
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
-                        SmallFloatingActionButton(
+                        LabeledSmallFab(
+                            label = "Scan",
                             onClick = {
                                 HapticUtils.playClick(context)
                                 context.findActivity()?.let { activity ->
@@ -264,7 +268,8 @@ fun TopicDetailScreen(
                         enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200)),
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
-                        SmallFloatingActionButton(
+                        LabeledSmallFab(
+                            label = "Upload",
                             onClick = { 
                                 HapticUtils.playClick(context)
                                 pickDocumentLauncher.launch(arrayOf("*/*")) 
@@ -282,7 +287,8 @@ fun TopicDetailScreen(
                         enter = fadeIn(tween(200, delayMillis = 50)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 50)),
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
-                        SmallFloatingActionButton(
+                        LabeledSmallFab(
+                            label = "Note",
                             onClick = {
                                 HapticUtils.playClick(context)
                                 topic?.let {
@@ -293,7 +299,7 @@ fun TopicDetailScreen(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         ) {
-                            Icon(Icons.Default.TextSnippet, contentDescription = "Add Text Material")
+                            Icon(Icons.AutoMirrored.Filled.TextSnippet, contentDescription = "Add Text Material")
                         }
                     }
 
@@ -303,7 +309,8 @@ fun TopicDetailScreen(
                         enter = fadeIn(tween(200, delayMillis = 100)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 100)),
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
-                        SmallFloatingActionButton(
+                        LabeledSmallFab(
+                            label = "Link",
                             onClick = {
                                 HapticUtils.playClick(context)
                                 topic?.let {
@@ -324,7 +331,8 @@ fun TopicDetailScreen(
                         enter = fadeIn(tween(200, delayMillis = 150)) + slideInVertically(initialOffsetY = { it / 2 }, animationSpec = tween(200, delayMillis = 150)),
                         exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it / 2 }, animationSpec = tween(200))
                     ) {
-                        SmallFloatingActionButton(
+                        LabeledSmallFab(
+                            label = "Checklist",
                             onClick = {
                                 HapticUtils.playClick(context)
                                 topic?.let {
@@ -335,7 +343,7 @@ fun TopicDetailScreen(
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ) {
-                            Icon(Icons.Default.FormatListBulleted, contentDescription = "Add Checklist")
+                            Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = "Add Checklist")
                         }
                     }
                 }
@@ -392,7 +400,7 @@ fun TopicDetailScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.FormatListBulleted,
+                                    Icons.AutoMirrored.Filled.FormatListBulleted,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
@@ -616,6 +624,41 @@ fun TopicDetailScreen(
                     }
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun LabeledSmallFab(
+    label: String,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    icon: @Composable () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 4.dp,
+            shadowElevation = 4.dp
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
+        SmallFloatingActionButton(
+            onClick = onClick,
+            containerColor = containerColor,
+            contentColor = contentColor
+        ) {
+            icon()
         }
     }
 }

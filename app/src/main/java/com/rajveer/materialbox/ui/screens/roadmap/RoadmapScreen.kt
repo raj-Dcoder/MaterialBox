@@ -19,16 +19,18 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.FormatListBulleted
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,7 +55,9 @@ fun RoadmapScreen(
     val items by viewModel.items.collectAsState()
     val progress by viewModel.progress.collectAsState()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var newItemText by remember { mutableStateOf("") }
+    var showAddGoalDialog by remember { mutableStateOf(false) }
     var parentForSubGoal by remember { mutableStateOf<RoadmapItem?>(null) }
     var itemToDelete by remember { mutableStateOf<RoadmapItem?>(null) }
     var itemToEdit by remember { mutableStateOf<RoadmapItem?>(null) }
@@ -96,42 +100,17 @@ fun RoadmapScreen(
                 )
             )
         },
-        bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                shadowElevation = 16.dp
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    HapticUtils.playClick(context)
+                    newItemText = ""
+                    showAddGoalDialog = true
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(WindowInsets.ime.asPaddingValues())
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = newItemText,
-                        onValueChange = { newItemText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Add a goal") },
-                        shape = RoundedCornerShape(24.dp),
-                        singleLine = true,
-                        trailingIcon = {
-                            if (newItemText.isNotBlank()) {
-                                IconButton(onClick = {
-                                    viewModel.addItem(newItemText)
-                                    newItemText = ""
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = "Add",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-                        }
-                    )
-                }
+                Icon(Icons.Default.Add, contentDescription = "Add goal", tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     ) { padding ->
@@ -245,6 +224,49 @@ fun RoadmapScreen(
                     }
                 }
             }
+        }
+
+        if (showAddGoalDialog) {
+            val focusRequester = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
+
+            AlertDialog(
+                onDismissRequest = { showAddGoalDialog = false },
+                title = { Text("Add goal") },
+                text = {
+                    OutlinedTextField(
+                        value = newItemText,
+                        onValueChange = { newItemText = it },
+                        label = { Text("Goal description") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (newItemText.isNotBlank()) {
+                                HapticUtils.playClick(context)
+                                viewModel.addItem(newItemText)
+                                newItemText = ""
+                                showAddGoalDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Add")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAddGoalDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         // Add Sub-goal dialog
@@ -507,10 +529,7 @@ fun RoadmapParentRow(
         border = if (!item.isCompleted && !hasChildren) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().combinedClickable(
-                onClick = { if (hasChildren) onToggleExpand() else onToggle(item) },
-                onLongClick = { onDelete(item) }
-            ).padding(vertical = 8.dp, horizontal = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -519,7 +538,14 @@ fun RoadmapParentRow(
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(
+                        onClick = { if (hasChildren) onToggleExpand() else onToggle(item) },
+                        onLongClick = { onDelete(item) }
+                    )
+            ) {
                 Text(
                     text = item.text,
                     style = MaterialTheme.typography.bodyLarge.copy(

@@ -9,6 +9,9 @@ interface MaterialDao {
     @Query("SELECT * FROM materials WHERE topicId = :topicId ORDER BY createdAt DESC")
     fun getMaterialsForTopic(topicId: Long): Flow<List<Material>>
 
+    @Query("SELECT * FROM materials WHERE subjectId = :subjectId ORDER BY createdAt DESC")
+    fun getMaterialsForSubject(subjectId: Long): Flow<List<Material>>
+
     @Query("SELECT * FROM materials WHERE id = :id")
     fun getMaterialById(id: Long): Flow<Material?>
 
@@ -26,6 +29,9 @@ interface MaterialDao {
 
     @Query("SELECT * FROM materials WHERE topicId = :topicId AND (originalFileUri = :uri OR title = :title) LIMIT 1")
     suspend fun findMaterialByUriOrTitle(topicId: Long, uri: String, title: String): Material?
+
+    @Query("SELECT * FROM materials WHERE subjectId = :subjectId AND (originalFileUri = :uri OR title = :title) LIMIT 1")
+    suspend fun findSubjectMaterialByUriOrTitle(subjectId: Long, uri: String, title: String): Material?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMaterial(material: Material): Long
@@ -45,12 +51,16 @@ interface MaterialDao {
     @Query("SELECT COUNT(*) FROM materials WHERE topicId = :topicId")
     fun getMaterialCountForTopic(topicId: Long): Flow<Int>
 
+    @Query("SELECT COUNT(*) FROM materials WHERE subjectId = :subjectId")
+    fun getMaterialCountForSubject(subjectId: Long): Flow<Int>
+
     @Query("""
         SELECT m.pathOrUrl FROM materials m
-        INNER JOIN topics t ON m.topicId = t.id
-        WHERE t.subjectId = :subjectId
+        LEFT JOIN topics t ON m.topicId = t.id
+        WHERE (t.subjectId = :subjectId OR m.subjectId = :subjectId)
           AND m.pathOrUrl NOT LIKE 'content://%'
           AND m.pathOrUrl NOT LIKE 'http%'
+          AND m.type NOT IN ('NOTE', 'LINK')
     """)
     suspend fun getLocalFilePathsForSubject(subjectId: Long): List<String>
 
@@ -59,6 +69,7 @@ interface MaterialDao {
         WHERE topicId = :topicId
           AND pathOrUrl NOT LIKE 'content://%'
           AND pathOrUrl NOT LIKE 'http%'
+          AND type NOT IN ('NOTE', 'LINK')
     """)
     suspend fun getLocalFilePathsForTopic(topicId: Long): List<String>
 
@@ -66,6 +77,7 @@ interface MaterialDao {
         SELECT pathOrUrl FROM materials
         WHERE pathOrUrl NOT LIKE 'content://%'
           AND pathOrUrl NOT LIKE 'http%'
+          AND type NOT IN ('NOTE', 'LINK')
     """)
     suspend fun getAllLocalFilePaths(): List<String>
 } 

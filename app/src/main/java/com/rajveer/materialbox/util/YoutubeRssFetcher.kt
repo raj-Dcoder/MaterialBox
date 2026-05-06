@@ -201,6 +201,17 @@ object YoutubeRssFetcher {
         return isRateLimited && System.currentTimeMillis() < rateLimitResetTime
     }
 
+    suspend fun fetchVideoDurationSeconds(videoUrl: String): Int? = withContext(Dispatchers.IO) {
+        try {
+            val html = fetchPageContent(videoUrl) ?: return@withContext null
+            val match = Regex(""""lengthSeconds":"(\d+)"""").find(html)
+            match?.groupValues?.getOrNull(1)?.toIntOrNull()?.takeIf { it > 0 }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching duration for $videoUrl", e)
+            null
+        }
+    }
+
     private fun extractChannelIdFromHtml(content: String): String? {
         val patterns = listOf(
             "<meta itemprop=\"identifier\" content=\"(UC[a-zA-Z0-9_-]+)\">".toRegex(),
